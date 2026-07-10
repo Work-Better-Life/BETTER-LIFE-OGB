@@ -1,0 +1,43 @@
+{
+  "name": "student-recorder",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "create-account": "tsx --env-file=.env scripts/create-account.ts",
+    "delete-account": "tsx --env-file=.env scripts/delete-account.ts",
+    "seed-test-data": "tsx --env-file=.env scripts/seed-test-data.ts",
+    "delete-all-students": "tsx --env-file=.env scripts/delete-all-students.ts",
+    "renumber-students": "tsx --env-file=.env scripts/renumber-students.ts",
+    "push-schema-to-turso": "tsx --env-file=.env scripts/push-schema-to-turso.ts",
+    "seed": "tsx --env-file=.env prisma/seed.ts",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.4",
+    "@prisma/adapter-libsql": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "bcryptjs": "^3.0.3",
+    "jose": "^6.2.3",
+    "motion": "^12.42.2",
+    "next": "16.2.10",
+    "prisma": "^7.8.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.0",
+    "typescript": "^5"
+  }
+}

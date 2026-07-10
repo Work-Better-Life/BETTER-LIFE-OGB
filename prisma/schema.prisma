@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  name           String
+  sessionVersion Int      @default(0)
+  createdAt      DateTime @default(now())
+}
+
+model Student {
+  id           String       @id @default(cuid())
+  serialNumber String       @unique
+  firstName    String
+  lastName     String
+  createdAt    DateTime     @default(now())
+  scores       ScoreEntry[]
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  topics    Topic[]
+}
+
+model Topic {
+  id              String       @id @default(cuid())
+  subjectId       String
+  subject         Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  name            String
+  defaultMaxScore Int          @default(100)
+  createdAt       DateTime     @default(now())
+  scores          ScoreEntry[]
+
+  @@unique([subjectId, name])
+}
+
+model ScoreEntry {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  topicId    String
+  topic      Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  value      Float
+  maxScore   Int
+  note       String?
+  recordedAt DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([studentId, topicId, recordedAt])
+}

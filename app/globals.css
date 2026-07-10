@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: oklch(98% 0.006 152);
+  --surface: oklch(99.2% 0.004 152);
+  --surface-muted: oklch(95.5% 0.009 152);
+  --foreground: oklch(24% 0.02 152);
+  --foreground-muted: oklch(46% 0.018 152);
+  --border: oklch(89% 0.013 152);
+
+  --primary: oklch(56% 0.15 152);
+  --primary-strong: oklch(46% 0.15 152);
+  --primary-soft: oklch(93% 0.045 152);
+  --primary-foreground: oklch(99% 0.006 152);
+
+  --tile-blue: oklch(57% 0.14 250);
+  --tile-blue-foreground: oklch(99% 0.006 250);
+  --tile-amber: oklch(76% 0.14 80);
+  --tile-amber-foreground: oklch(28% 0.05 80);
+  --tile-rose: oklch(61% 0.17 18);
+  --tile-rose-foreground: oklch(99% 0.006 18);
+
+  --danger: oklch(58% 0.18 18);
+  --danger-foreground: oklch(99% 0.006 18);
+
+  --shadow-floating: 0 16px 40px -12px oklch(20% 0.03 152 / 0.32), 0 4px 12px -4px oklch(20% 0.03 152 / 0.2);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.dark {
+  --background: oklch(19% 0.013 152);
+  --surface: oklch(23% 0.014 152);
+  --surface-muted: oklch(27.5% 0.016 152);
+  --foreground: oklch(94% 0.008 152);
+  --foreground-muted: oklch(71% 0.014 152);
+  --border: oklch(33% 0.018 152);
+
+  --primary: oklch(70% 0.15 152);
+  --primary-strong: oklch(80% 0.15 152);
+  --primary-soft: oklch(31% 0.06 152);
+  --primary-foreground: oklch(15% 0.02 152);
+
+  --tile-blue: oklch(66% 0.13 250);
+  --tile-blue-foreground: oklch(15% 0.02 250);
+  --tile-amber: oklch(74% 0.13 80);
+  --tile-amber-foreground: oklch(18% 0.03 80);
+  --tile-rose: oklch(68% 0.16 18);
+  --tile-rose-foreground: oklch(15% 0.02 18);
+
+  --danger: oklch(68% 0.16 18);
+  --danger-foreground: oklch(15% 0.02 18);
+
+  --shadow-floating: 0 16px 40px -12px oklch(5% 0.02 152 / 0.55), 0 4px 12px -4px oklch(5% 0.02 152 / 0.4);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-border: var(--border);
+
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-tile-blue: var(--tile-blue);
+  --color-tile-blue-foreground: var(--tile-blue-foreground);
+  --color-tile-amber: var(--tile-amber);
+  --color-tile-amber-foreground: var(--tile-amber-foreground);
+  --color-tile-rose: var(--tile-rose);
+  --color-tile-rose-foreground: var(--tile-rose-foreground);
+
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-jakarta);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  --shadow-floating: var(--shadow-floating);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+h1, h2, .font-display {
+  font-family: var(--font-display);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
