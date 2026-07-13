@@ -175,6 +175,75 @@ export async function addBulkScoreAction(input: BulkScoreInput): Promise<BulkSco
   return { successCount: entries.length };
 }
 
+const studentBulkEntrySchema = z.object({
+  subjectId: z.string().min(1),
+  topicId: z.string().optional(),
+  newTopicName: z.string().trim().optional(),
+  value: z.coerce.number().min(0, "Scores can't be negative."),
+  maxScore: z.coerce.number().int().min(1, "Max score must be at least 1."),
+  note: z.string().trim().optional(),
+  recordedAt: z.string().min(1, "Pick a date."),
+});
+
+const studentBulkScoreSchema = z.object({
+  studentId: z.string().min(1),
+  entries: z.array(studentBulkEntrySchema).min(1, "Check at least one subject to record a score."),
+});
+
+export type StudentBulkScoreInput = z.infer<typeof studentBulkScoreSchema>;
+export type StudentBulkScoreState = { error?: string; successCount?: number };
+
+export async function addStudentBulkScoreAction(input: StudentBulkScoreInput): Promise<StudentBulkScoreState> {
+  await requireSession();
+
+  const parsed = studentBulkScoreSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
+  }
+
+  const { studentId, entries } = parsed.data;
+
+  const resolvedEntries: Array<{
+    studentId: string;
+    topicId: string;
+    value: number;
+    maxScore: number;
+    note?: string;
+    recordedAt: Date;
+  }> = [];
+
+  for (const entry of entries) {
+    let resolvedTopicId = entry.topicId;
+    if (!resolvedTopicId) {
+      if (!entry.newTopicName) {
+        return { error: "Choose an existing topic or type a new one for each checked subject." };
+      }
+      try {
+        const topic = await subjectsData.createTopic(entry.subjectId, entry.newTopicName, entry.maxScore);
+        resolvedTopicId = topic.id;
+      } catch {
+        return { error: "A topic with that name already exists in one of the selected subjects." };
+      }
+    }
+    resolvedEntries.push({
+      studentId,
+      topicId: resolvedTopicId,
+      value: entry.value,
+      maxScore: entry.maxScore,
+      note: entry.note,
+      recordedAt: new Date(entry.recordedAt),
+    });
+  }
+
+  await scoresData.addBulkScoreEntries(resolvedEntries);
+
+  revalidatePath(`/students/${studentId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/students");
+
+  return { successCount: resolvedEntries.length };
+}
+
 export async function deleteScoreAction(id: string, studentId: string) {
   await requireSession();
   await scoresData.deleteScoreEntry(id);

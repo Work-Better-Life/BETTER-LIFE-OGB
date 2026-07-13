@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { listSubjectsForPicker } from "@/lib/data/subjects";
 import { listStudentsForPicker } from "@/lib/data/students";
-import { BulkScoreForm } from "@/components/scores/bulk-score-form";
+import { RecordTabs } from "@/components/scores/record-tabs";
 
 export default async function RecordTestPage() {
   const [subjects, students] = await Promise.all([listSubjectsForPicker(), listStudentsForPicker()]);
@@ -13,9 +13,6 @@ export default async function RecordTestPage() {
           ← Dashboard
         </Link>
         <h1 className="font-display mt-2 text-2xl text-foreground">Record a test</h1>
-        <p className="mt-1 text-sm text-foreground-muted">
-          Pick the subject and topic once, then enter each student&apos;s score in one pass.
-        </p>
       </div>
 
       {subjects.length === 0 ? (
@@ -27,7 +24,7 @@ export default async function RecordTestPage() {
           before recording a test.
         </div>
       ) : (
-        <BulkScoreForm subjects={subjects} students={students} />
+        <RecordTabs subjects={subjects} students={students} />
       )}
     </div>
   );

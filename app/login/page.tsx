@@ -7,7 +7,9 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
           <LogoMark size={40} />
-          <h1 className="font-display mt-4 text-2xl text-foreground">Student Score Tracker</h1>
+          <h1 className="font-display mt-4 text-2xl text-foreground">
+            Better Life OGB
+          </h1>
           <p className="mt-1.5 text-sm text-foreground-muted">
             Sign in to see who&apos;s climbing.
           </p>

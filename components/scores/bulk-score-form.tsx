@@ -280,6 +280,7 @@ export function BulkScoreForm({ subjects, students }: { subjects: Subject[]; stu
                         focusNext(student.id);
                       }
                     }}
+                    onWheel={(e) => e.currentTarget.blur()}
                     placeholder={`out of ${maxScore}`}
                     className="h-9 w-28 rounded-md border border-border bg-surface px-2 text-sm text-foreground"
                   />
