@@ -263,7 +263,7 @@ export function BulkScoreGridForm({ subjects, students }: { subjects: Subject[];
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-muted">
-                  <th className="px-3 py-3 text-left align-bottom">
+                  <th className="sticky left-0 z-20 border-r border-border bg-surface-muted px-3 py-3 text-left align-bottom">
                     <span className="text-xs font-medium uppercase tracking-wide text-foreground-muted">Student</span>
                   </th>
                   {selectedSubjects.map((subject) => {
@@ -316,7 +316,7 @@ export function BulkScoreGridForm({ subjects, students }: { subjects: Subject[];
                   const checked = student.id in rows;
                   return (
                     <tr key={student.id} className="border-b border-border last:border-0">
-                      <td className="px-3 py-2">
+                      <td className="sticky left-0 z-10 border-r border-border bg-surface px-3 py-2">
                         <div className="flex items-center gap-2">
                           <input
                             type="checkbox"
