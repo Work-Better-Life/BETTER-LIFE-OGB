@@ -2,6 +2,12 @@ import { prisma } from "@/lib/db";
 import { averagePercentage } from "@/lib/scoring";
 import { EXPORT_WINDOW_DAYS, type ExportWindow } from "@/lib/export-window";
 
+function serialSequence(serialNumber: string) {
+  const match = serialNumber.match(/(\d+)$/);
+  const seq = match ? parseInt(match[1], 10) : NaN;
+  return Number.isFinite(seq) ? seq : 0;
+}
+
 async function generateSerialNumber(firstName: string, lastName: string) {
   const initials = `${firstName.trim()[0] ?? ""}${lastName.trim()[0] ?? ""}`.toUpperCase();
 
@@ -9,20 +15,16 @@ async function generateSerialNumber(firstName: string, lastName: string) {
   // added — regardless of initials — so student #1 is 001 and #500 is 500.
   const existing = await prisma.student.findMany({ select: { serialNumber: true } });
 
-  const maxSeq = existing.reduce((max, student) => {
-    const match = student.serialNumber.match(/(\d+)$/);
-    const seq = match ? parseInt(match[1], 10) : NaN;
-    return Number.isFinite(seq) ? Math.max(max, seq) : max;
-  }, 0);
+  const maxSeq = existing.reduce((max, student) => Math.max(max, serialSequence(student.serialNumber)), 0);
 
   return `${initials}${String(maxSeq + 1).padStart(3, "0")}`;
 }
 
 export async function listStudentsForPicker() {
-  return prisma.student.findMany({
+  const students = await prisma.student.findMany({
     select: { id: true, firstName: true, lastName: true, serialNumber: true },
-    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   });
+  return students.sort((a, b) => serialSequence(a.serialNumber) - serialSequence(b.serialNumber));
 }
 
 export type StudentSort = "oldest" | "newest" | "scored" | "name";
