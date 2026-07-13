@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { BulkScoreForm } from "@/components/scores/bulk-score-form";
-import { BulkScoreByStudentForm } from "@/components/scores/bulk-score-by-student-form";
+import { BulkScoreGridForm } from "@/components/scores/bulk-score-grid-form";
 
 type Topic = { id: string; name: string; defaultMaxScore: number };
 type Subject = { id: string; name: string; topics: Topic[] };
@@ -11,7 +11,7 @@ type Student = { id: string; firstName: string; lastName: string; serialNumber: 
 
 const MODES = [
   { value: "subject", label: "By subject", description: "Pick the subject and topic once, then enter each student's score in one pass." },
-  { value: "student", label: "By student", description: "Pick a student, then record a score in as many of their subjects as you need." },
+  { value: "grid", label: "Grid", description: "Pick subjects and students, then fill in scores directly in the table — spreadsheet style." },
 ] as const;
 
 type Mode = (typeof MODES)[number]["value"];
@@ -45,7 +45,7 @@ export function RecordTabs({ subjects, students }: { subjects: Subject[]; studen
       {mode === "subject" ? (
         <BulkScoreForm subjects={subjects} students={students} />
       ) : (
-        <BulkScoreByStudentForm subjects={subjects} students={students} />
+        <BulkScoreGridForm subjects={subjects} students={students} />
       )}
     </div>
   );

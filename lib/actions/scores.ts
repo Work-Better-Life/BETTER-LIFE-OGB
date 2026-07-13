@@ -175,33 +175,40 @@ export async function addBulkScoreAction(input: BulkScoreInput): Promise<BulkSco
   return { successCount: entries.length };
 }
 
-const studentBulkEntrySchema = z.object({
+const gridColumnSchema = z.object({
   subjectId: z.string().min(1),
   topicId: z.string().optional(),
   newTopicName: z.string().trim().optional(),
-  value: z.coerce.number().min(0, "Scores can't be negative."),
   maxScore: z.coerce.number().int().min(1, "Max score must be at least 1."),
-  note: z.string().trim().optional(),
+  entries: z
+    .array(
+      z.object({
+        studentId: z.string().min(1),
+        value: z.coerce.number().min(0, "Scores can't be negative."),
+      })
+    )
+    .min(1),
+});
+
+const gridScoreSchema = z.object({
   recordedAt: z.string().min(1, "Pick a date."),
+  note: z.string().trim().optional(),
+  columns: z.array(gridColumnSchema).min(1, "Enter at least one score."),
 });
 
-const studentBulkScoreSchema = z.object({
-  studentId: z.string().min(1),
-  entries: z.array(studentBulkEntrySchema).min(1, "Check at least one subject to record a score."),
-});
+export type GridScoreInput = z.infer<typeof gridScoreSchema>;
+export type GridScoreState = { error?: string; successCount?: number };
 
-export type StudentBulkScoreInput = z.infer<typeof studentBulkScoreSchema>;
-export type StudentBulkScoreState = { error?: string; successCount?: number };
-
-export async function addStudentBulkScoreAction(input: StudentBulkScoreInput): Promise<StudentBulkScoreState> {
+export async function addGridScoreAction(input: GridScoreInput): Promise<GridScoreState> {
   await requireSession();
 
-  const parsed = studentBulkScoreSchema.safeParse(input);
+  const parsed = gridScoreSchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
-  const { studentId, entries } = parsed.data;
+  const { recordedAt, note, columns } = parsed.data;
+  const date = new Date(recordedAt);
 
   const resolvedEntries: Array<{
     studentId: string;
@@ -212,34 +219,37 @@ export async function addStudentBulkScoreAction(input: StudentBulkScoreInput): P
     recordedAt: Date;
   }> = [];
 
-  for (const entry of entries) {
-    let resolvedTopicId = entry.topicId;
+  for (const column of columns) {
+    let resolvedTopicId = column.topicId;
     if (!resolvedTopicId) {
-      if (!entry.newTopicName) {
-        return { error: "Choose an existing topic or type a new one for each checked subject." };
+      if (!column.newTopicName) {
+        return { error: "Choose an existing topic or type a new one for each subject column." };
       }
       try {
-        const topic = await subjectsData.createTopic(entry.subjectId, entry.newTopicName, entry.maxScore);
+        const topic = await subjectsData.createTopic(column.subjectId, column.newTopicName, column.maxScore);
         resolvedTopicId = topic.id;
       } catch {
         return { error: "A topic with that name already exists in one of the selected subjects." };
       }
     }
-    resolvedEntries.push({
-      studentId,
-      topicId: resolvedTopicId,
-      value: entry.value,
-      maxScore: entry.maxScore,
-      note: entry.note,
-      recordedAt: new Date(entry.recordedAt),
-    });
+    for (const entry of column.entries) {
+      resolvedEntries.push({
+        studentId: entry.studentId,
+        topicId: resolvedTopicId,
+        value: entry.value,
+        maxScore: column.maxScore,
+        note,
+        recordedAt: date,
+      });
+    }
   }
 
   await scoresData.addBulkScoreEntries(resolvedEntries);
 
-  revalidatePath(`/students/${studentId}`);
   revalidatePath("/dashboard");
   revalidatePath("/students");
+  const uniqueStudentIds = new Set(resolvedEntries.map((e) => e.studentId));
+  for (const studentId of uniqueStudentIds) revalidatePath(`/students/${studentId}`);
 
   return { successCount: resolvedEntries.length };
 }
