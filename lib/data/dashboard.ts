@@ -116,32 +116,41 @@ export async function getScoreTrend(range: TrendRange = "30d") {
 }
 
 export async function getTopPerformers(limit = 5, window: StatWindow = "month", monthValue?: string) {
-  let scoresWhere: { recordedAt: { gte: Date; lt?: Date } };
+  let windowStart: Date;
+  let windowEnd: Date | undefined;
   if (window === "month") {
     const { start, end } = monthValueRange(monthValue ?? currentMonthValue());
-    scoresWhere = { recordedAt: { gte: start, lt: end } };
+    windowStart = start;
+    windowEnd = end;
   } else {
-    const cutoff = new Date(Date.now() - STAT_WINDOW_DAYS.week * 24 * 60 * 60 * 1000);
-    scoresWhere = { recordedAt: { gte: cutoff } };
+    windowStart = new Date(Date.now() - STAT_WINDOW_DAYS.week * 24 * 60 * 60 * 1000);
   }
 
   const students = await prisma.student.findMany({
     include: {
       scores: {
-        where: scoresWhere,
         select: { value: true, maxScore: true, recordedAt: true },
       },
     },
   });
 
   return students
-    .map((student) => ({
-      id: student.id,
-      serialNumber: student.serialNumber,
-      firstName: student.firstName,
-      lastName: student.lastName,
-      averagePercentage: averagePercentage(student.scores),
-    }))
+    .map((student) => {
+      const windowScores = student.scores.filter(
+        (s) => s.recordedAt >= windowStart && (!windowEnd || s.recordedAt < windowEnd)
+      );
+      // Prefer the student's average within the selected window, but a quiet
+      // week/month shouldn't push the list below `limit` entries — fall back
+      // to their all-time average so the ranking still fills up.
+      const averagePercentageValue = averagePercentage(windowScores) ?? averagePercentage(student.scores);
+      return {
+        id: student.id,
+        serialNumber: student.serialNumber,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        averagePercentage: averagePercentageValue,
+      };
+    })
     .filter((s) => s.averagePercentage !== null)
     .sort((a, b) => (b.averagePercentage ?? 0) - (a.averagePercentage ?? 0))
     .slice(0, limit);
