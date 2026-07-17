@@ -115,6 +115,38 @@ export async function getScoreTrend(range: TrendRange = "30d") {
   };
 }
 
+/**
+ * The most recent recordedAt date covering the largest number of distinct
+ * students — i.e. the last class-wide test day. Ties (every weekly batch is
+ * normally full-class) break toward the more recent date. Counting distinct
+ * students rather than raw score-entry rows keeps this robust against a
+ * student having an extra/duplicate subject entry on some date, which would
+ * otherwise outrank a clean, more recent full-class batch. This is also
+ * deliberately not just "the latest recordedAt in the table," since a
+ * handful of late-entered makeup scores can carry a newer date than the
+ * actual most recent test everyone sat.
+ */
+async function findLatestTestDate(): Promise<Date | null> {
+  const rows = await prisma.scoreEntry.findMany({
+    select: { recordedAt: true, studentId: true },
+    distinct: ["recordedAt", "studentId"],
+  });
+  if (rows.length === 0) return null;
+
+  const studentCountByDate = new Map<number, number>();
+  for (const row of rows) {
+    const key = row.recordedAt.getTime();
+    studentCountByDate.set(key, (studentCountByDate.get(key) ?? 0) + 1);
+  }
+
+  const maxStudents = Math.max(...studentCountByDate.values());
+  let anchor: number | null = null;
+  for (const [time, count] of studentCountByDate) {
+    if (count === maxStudents && (anchor === null || time > anchor)) anchor = time;
+  }
+  return anchor === null ? null : new Date(anchor);
+}
+
 export async function getTopPerformers(limit = 5, window: StatWindow = "month", monthValue?: string) {
   let windowStart: Date;
   let windowEnd: Date | undefined;
@@ -123,7 +155,13 @@ export async function getTopPerformers(limit = 5, window: StatWindow = "month", 
     windowStart = start;
     windowEnd = end;
   } else {
-    windowStart = new Date(Date.now() - STAT_WINDOW_DAYS.week * 24 * 60 * 60 * 1000);
+    const latestTestDate = await findLatestTestDate();
+    if (latestTestDate) {
+      windowStart = latestTestDate;
+      windowEnd = new Date(latestTestDate.getTime() + 24 * 60 * 60 * 1000);
+    } else {
+      windowStart = new Date(Date.now() - STAT_WINDOW_DAYS.week * 24 * 60 * 60 * 1000);
+    }
   }
 
   const students = await prisma.student.findMany({
