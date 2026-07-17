@@ -29,7 +29,7 @@ export function EditScoreForm({
     <form action={formAction} className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3">
         <Field label="Score" htmlFor="value">
-          <Input id="value" name="value" type="number" step="0.5" min={0} defaultValue={entry.value} required />
+          <Input id="value" name="value" type="number" step="any" min={0} defaultValue={entry.value} required />
         </Field>
         <Field label="Out of" htmlFor="maxScore">
           <Input id="maxScore" name="maxScore" type="number" min={1} defaultValue={entry.maxScore} required />

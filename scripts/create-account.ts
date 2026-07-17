@@ -58,7 +58,7 @@ async function askHidden(promptText: string): Promise<string> {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 async function main() {
-  console.log("Create or update a login account for the Student Score Tracker.\n");
+  console.log("Create or update a login account for Better Life OGB.\n");
 
   const rl = readline.createInterface({ input: stdin, output: stdout });
   const email = (await rl.question("Email: ")).trim();

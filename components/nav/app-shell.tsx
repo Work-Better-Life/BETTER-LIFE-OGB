@@ -98,8 +98,8 @@ export function AppShell({
             >
               <div className="flex items-center gap-2.5 px-5 py-5">
                 <LogoMark size={30} />
-                <span className="font-display text-base text-foreground">
-                  Score Tracker
+                <span className="font-bold text-base text-foreground">
+                  BETTER LIFE OGB
                 </span>
               </div>
               <NavLinks

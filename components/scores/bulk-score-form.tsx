@@ -270,7 +270,7 @@ export function BulkScoreForm({ subjects, students }: { subjects: Subject[]; stu
                       inputRefs.current[student.id] = el;
                     }}
                     type="number"
-                    step="0.5"
+                    step="any"
                     min={0}
                     value={scores[student.id]}
                     onChange={(e) => setScores((prev) => ({ ...prev, [student.id]: e.target.value }))}

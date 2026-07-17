@@ -191,8 +191,8 @@ export default async function DashboardPage({
           {mostImproved.length === 0 ? (
             <p className="mt-4 text-sm text-foreground-muted">
               {improvedWindow === "month"
-                ? `Worth a look once there are at least two scores on the same topic in ${monthValueLabel(improvedMonth)}.`
-                : "Worth a look once there are at least two scores on the same topic in the last week."}
+                ? `Worth a look once a student has scores in ${monthValueLabel(improvedMonth)} and the month before it.`
+                : "Worth a look once a student has scores in this week and the week before it."}
             </p>
           ) : (
             <ul className="mt-4 flex flex-col gap-3">

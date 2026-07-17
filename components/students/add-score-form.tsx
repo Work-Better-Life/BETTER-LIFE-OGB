@@ -102,7 +102,7 @@ export function AddScoreForm({
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Score" htmlFor="value">
-          <Input id="value" name="value" type="number" step="0.5" min={0} required />
+          <Input id="value" name="value" type="number" step="any" min={0} required />
         </Field>
         <Field label="Out of" htmlFor="maxScore">
           <Input

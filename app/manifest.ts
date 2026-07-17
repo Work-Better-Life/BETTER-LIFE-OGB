@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Student Score Tracker",
-    short_name: "Score Tracker",
+    name: "Better Life OGB",
+    short_name: "Better Life OGB",
     description: "Track student score trends over time.",
     start_url: "/dashboard",
     display: "standalone",

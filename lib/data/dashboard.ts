@@ -148,48 +148,58 @@ export async function getTopPerformers(limit = 5, window: StatWindow = "month", 
 }
 
 export async function getMostImproved(limit = 5, window: StatWindow = "month", monthValue?: string) {
-  let start: Date;
-  let end: Date | null = null;
+  let currentStart: Date;
+  let currentEnd: Date | null = null;
   if (window === "month") {
-    ({ start, end } = monthValueRange(monthValue ?? currentMonthValue()));
+    ({ start: currentStart, end: currentEnd } = monthValueRange(monthValue ?? currentMonthValue()));
   } else {
-    start = new Date(Date.now() - STAT_WINDOW_DAYS.week * 24 * 60 * 60 * 1000);
+    currentStart = new Date(Date.now() - STAT_WINDOW_DAYS.week * 24 * 60 * 60 * 1000);
+  }
+
+  // The comparison period is the equivalent stretch of time immediately
+  // before the current one — the previous calendar month, or the 7 days
+  // before the current 7-day window.
+  let previousStart: Date;
+  const previousEnd: Date = currentStart;
+  if (window === "month") {
+    previousStart = new Date(currentStart);
+    previousStart.setUTCMonth(previousStart.getUTCMonth() - 1);
+  } else {
+    previousStart = new Date(currentStart.getTime() - STAT_WINDOW_DAYS.week * 24 * 60 * 60 * 1000);
   }
 
   const students = await prisma.student.findMany({
     include: {
       scores: {
-        select: { topicId: true, value: true, maxScore: true, recordedAt: true },
-        orderBy: { recordedAt: "asc" },
+        where: {
+          recordedAt: { gte: previousStart, ...(currentEnd ? { lt: currentEnd } : {}) },
+        },
+        select: { value: true, maxScore: true, recordedAt: true },
       },
     },
   });
 
   const ranked = students
     .map((student) => {
-      const byTopic = new Map<string, typeof student.scores>();
-      for (const entry of student.scores) {
-        if (!byTopic.has(entry.topicId)) byTopic.set(entry.topicId, []);
-        byTopic.get(entry.topicId)!.push(entry);
-      }
+      // Bucketed strictly by recordedAt (the date the test happened), never by
+      // the order scores were entered into the system.
+      const currentEntries = student.scores.filter(
+        (s) => s.recordedAt >= currentStart && (!currentEnd || s.recordedAt < currentEnd)
+      );
+      const previousEntries = student.scores.filter(
+        (s) => s.recordedAt >= previousStart && s.recordedAt < previousEnd
+      );
 
-      const deltas: number[] = [];
-      for (const topicEntries of byTopic.values()) {
-        if (topicEntries.length < 2) continue;
-        const latest = topicEntries[topicEntries.length - 1];
-        if (latest.recordedAt < start) continue;
-        if (end && latest.recordedAt >= end) continue;
-        const previous = topicEntries[topicEntries.length - 2];
-        deltas.push(toPercentage(latest) - toPercentage(previous));
-      }
+      const currentAvg = averagePercentage(currentEntries);
+      const previousAvg = averagePercentage(previousEntries);
+      if (currentAvg === null || previousAvg === null) return null;
 
-      if (deltas.length === 0) return null;
       return {
         id: student.id,
         serialNumber: student.serialNumber,
         firstName: student.firstName,
         lastName: student.lastName,
-        averageDelta: deltas.reduce((a, b) => a + b, 0) / deltas.length,
+        averageDelta: currentAvg - previousAvg,
       };
     })
     .filter((s): s is NonNullable<typeof s> => s !== null)

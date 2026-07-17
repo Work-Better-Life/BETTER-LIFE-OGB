@@ -18,7 +18,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Student Score Tracker",
+  title: "Better Life OGB",
   description: "Track student score trends over time.",
   manifest: "/manifest.webmanifest",
 };

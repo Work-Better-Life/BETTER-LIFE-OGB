@@ -342,7 +342,7 @@ export function BulkScoreGridForm({ subjects, students }: { subjects: Subject[];
                                 inputRefs.current[cellKey(student.id, subject.id)] = el;
                               }}
                               type="number"
-                              step="0.5"
+                              step="any"
                               min={0}
                               value={rows[student.id]?.[subject.id] ?? ""}
                               onChange={(e) => handleCellChange(student.id, subject.id, e.target.value)}
