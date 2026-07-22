@@ -161,6 +161,7 @@ export async function getTopPerformers(limit = 5, window: StatWindow = "month", 
       windowEnd = new Date(latestTestDate.getTime() + 24 * 60 * 60 * 1000);
     } else {
       windowStart = new Date(Date.now() - STAT_WINDOW_DAYS.week * 24 * 60 * 60 * 1000);
+      windowEnd = new Date();
     }
   }
 
@@ -172,15 +173,39 @@ export async function getTopPerformers(limit = 5, window: StatWindow = "month", 
     },
   });
 
+  const ACTIVE_THRESHOLD_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
+
   return students
     .map((student) => {
       const windowScores = student.scores.filter(
         (s) => s.recordedAt >= windowStart && (!windowEnd || s.recordedAt < windowEnd)
       );
-      // Prefer the student's average within the selected window, but a quiet
-      // week/month shouldn't push the list below `limit` entries — fall back
-      // to their all-time average so the ranking still fills up.
-      const averagePercentageValue = averagePercentage(windowScores) ?? averagePercentage(student.scores);
+
+      // Determine activity status to handle fallback safety
+      let firstScore: Date | undefined;
+      let lastScore: Date | undefined;
+      if (student.scores.length > 0) {
+        firstScore = student.scores[0].recordedAt;
+        lastScore = student.scores[0].recordedAt;
+        for (const score of student.scores) {
+          if (score.recordedAt < firstScore) firstScore = score.recordedAt;
+          if (score.recordedAt > lastScore) lastScore = score.recordedAt;
+        }
+      }
+
+      const hasJoined = firstScore !== undefined && (!windowEnd || firstScore < windowEnd);
+      const isStillActive = lastScore !== undefined && lastScore.getTime() >= windowStart.getTime() - ACTIVE_THRESHOLD_MS;
+
+      let averagePercentageValue: number | null = null;
+      if (windowScores.length > 0) {
+        averagePercentageValue = averagePercentage(windowScores);
+      } else if (hasJoined && isStillActive) {
+        // Prefer the student's average within the selected window, but a quiet
+        // week/month shouldn't push the list below `limit` entries — fall back
+        // to their all-time average so the ranking still fills up.
+        averagePercentageValue = averagePercentage(student.scores);
+      }
+
       return {
         id: student.id,
         serialNumber: student.serialNumber,
@@ -201,6 +226,7 @@ export async function getMostImproved(limit = 5, window: StatWindow = "month", m
     ({ start: currentStart, end: currentEnd } = monthValueRange(monthValue ?? currentMonthValue()));
   } else {
     currentStart = new Date(Date.now() - STAT_WINDOW_DAYS.week * 24 * 60 * 60 * 1000);
+    currentEnd = new Date();
   }
 
   // The comparison period is the equivalent stretch of time immediately
@@ -249,7 +275,7 @@ export async function getMostImproved(limit = 5, window: StatWindow = "month", m
         averageDelta: currentAvg - previousAvg,
       };
     })
-    .filter((s): s is NonNullable<typeof s> => s !== null)
+    .filter((s): s is NonNullable<typeof s> => s !== null && s.averageDelta > 0)
     .sort((a, b) => b.averageDelta - a.averageDelta)
     .slice(0, limit);
 
