@@ -16,6 +16,7 @@ import {
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { TrendChart } from "@/components/dashboard/trend-chart";
 import { TrendRangeSelect } from "@/components/dashboard/trend-range-select";
+import { ChartModeToggle } from "@/components/dashboard/chart-mode-toggle";
 import { StatWindowToggle } from "@/components/dashboard/stat-window-toggle";
 import { MonthYearToggle } from "@/components/dashboard/month-year-toggle";
 import { DeltaIndicator } from "@/components/ui/badge";
@@ -34,6 +35,7 @@ export default async function DashboardPage({
     improvedRange?: string;
     topMonth?: string;
     improvedMonth?: string;
+    mode?: string;
   }>;
 }) {
   const {
@@ -42,10 +44,12 @@ export default async function DashboardPage({
     improvedRange: improvedRangeParam,
     topMonth: topMonthParam,
     improvedMonth: improvedMonthParam,
+    mode: modeParam,
   } = await searchParams;
   const range = parseTrendRange(rangeParam);
   const topWindow = normalizeStatWindow(topRangeParam);
   const improvedWindow = normalizeStatWindow(improvedRangeParam);
+  const chartMode = modeParam === "bar" ? "bar" : "line";
 
   const defaultMonth = await getLatestScoreMonthValue();
   const topMonth = normalizeMonthValue(topMonthParam ?? defaultMonth);
@@ -102,10 +106,13 @@ export default async function DashboardPage({
               {TREND_RANGES[range].label.replace(/^1 /, "")}.
             </p>
           </div>
-          <TrendRangeSelect value={range} />
+          <div className="flex items-center gap-2">
+            <TrendRangeSelect value={range} />
+            <ChartModeToggle />
+          </div>
         </div>
         <div className="mt-4">
-          <TrendChart data={trend.points} unit={trend.unit} comparison={trend.comparison} />
+          <TrendChart data={trend.points} unit={trend.unit} comparison={trend.comparison} mode={chartMode} />
         </div>
       </section>
 
