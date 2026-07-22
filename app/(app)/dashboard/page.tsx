@@ -105,7 +105,7 @@ export default async function DashboardPage({
           <TrendRangeSelect value={range} />
         </div>
         <div className="mt-4">
-          <TrendChart data={trend.points} unit={trend.unit} />
+          <TrendChart data={trend.points} unit={trend.unit} comparison={trend.comparison} />
         </div>
       </section>
 
