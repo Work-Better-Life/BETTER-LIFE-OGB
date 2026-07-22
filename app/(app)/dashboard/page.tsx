@@ -5,6 +5,7 @@ import {
   getTopPerformers,
   getMostImproved,
   getRecentScoreEntries,
+  getLatestScoreMonthValue,
 } from "@/lib/data/dashboard";
 import { TREND_RANGES, type TrendRange } from "@/lib/trend-ranges";
 import {
@@ -45,8 +46,10 @@ export default async function DashboardPage({
   const range = parseTrendRange(rangeParam);
   const topWindow = normalizeStatWindow(topRangeParam);
   const improvedWindow = normalizeStatWindow(improvedRangeParam);
-  const topMonth = normalizeMonthValue(topMonthParam);
-  const improvedMonth = normalizeMonthValue(improvedMonthParam);
+
+  const defaultMonth = await getLatestScoreMonthValue();
+  const topMonth = normalizeMonthValue(topMonthParam ?? defaultMonth);
+  const improvedMonth = normalizeMonthValue(improvedMonthParam ?? defaultMonth);
 
   const [counts, trend, topPerformers, mostImproved, recent] =
     await Promise.all([

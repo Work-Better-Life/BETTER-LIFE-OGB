@@ -140,11 +140,20 @@ async function findLatestTestDate(): Promise<Date | null> {
   }
 
   const maxStudents = Math.max(...studentCountByDate.values());
+  const threshold = Math.ceil(maxStudents * 0.5); // Allow up to 50% absences
   let anchor: number | null = null;
   for (const [time, count] of studentCountByDate) {
-    if (count === maxStudents && (anchor === null || time > anchor)) anchor = time;
+    if (count >= threshold && (anchor === null || time > anchor)) anchor = time;
   }
   return anchor === null ? null : new Date(anchor);
+}
+
+export async function getLatestScoreMonthValue(): Promise<string> {
+  const latestTestDate = await findLatestTestDate();
+  if (latestTestDate) {
+    return `${latestTestDate.getUTCFullYear()}-${String(latestTestDate.getUTCMonth() + 1).padStart(2, "0")}`;
+  }
+  return currentMonthValue();
 }
 
 export async function getTopPerformers(limit = 5, window: StatWindow = "month", monthValue?: string) {
@@ -225,8 +234,14 @@ export async function getMostImproved(limit = 5, window: StatWindow = "month", m
   if (window === "month") {
     ({ start: currentStart, end: currentEnd } = monthValueRange(monthValue ?? currentMonthValue()));
   } else {
-    currentStart = new Date(Date.now() - STAT_WINDOW_DAYS.week * 24 * 60 * 60 * 1000);
-    currentEnd = new Date();
+    const latestTestDate = await findLatestTestDate();
+    if (latestTestDate) {
+      currentStart = latestTestDate;
+      currentEnd = new Date(latestTestDate.getTime() + 24 * 60 * 60 * 1000);
+    } else {
+      currentStart = new Date(Date.now() - STAT_WINDOW_DAYS.week * 24 * 60 * 60 * 1000);
+      currentEnd = new Date();
+    }
   }
 
   // The comparison period is the equivalent stretch of time immediately
