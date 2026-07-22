@@ -8,17 +8,37 @@ import { Badge } from "@/components/ui/badge";
 import { TopicCard } from "@/components/students/topic-card";
 import { AddScoreDrawer } from "@/components/students/add-score-drawer";
 import { StudentHeaderActions } from "@/components/students/student-header-actions";
-import { DateRangeFilter } from "@/components/students/date-range-filter";
+import { StudentDateFilter } from "@/components/students/student-date-filter";
+import { normalizeMonthValue, monthValueRange } from "@/lib/stat-window";
+
+function normalizeFilterRange(value?: string): "all" | "week" | "month" {
+  return value === "all" || value === "week" || value === "month" ? value : "all";
+}
 
 export default async function StudentDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ startDate?: string; endDate?: string }>;
+  searchParams: Promise<{ filterRange?: string; filterMonth?: string }>;
 }) {
   const { id } = await params;
-  const { startDate, endDate } = await searchParams;
+  const { filterRange, filterMonth } = await searchParams;
+
+  const range = normalizeFilterRange(filterRange);
+  const monthVal = normalizeMonthValue(filterMonth);
+
+  let startDate: string | undefined;
+  let endDate: string | undefined;
+
+  if (range === "week") {
+    startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    endDate = new Date().toISOString();
+  } else if (range === "month") {
+    const { start, end } = monthValueRange(monthVal);
+    startDate = start.toISOString();
+    endDate = end.toISOString();
+  }
 
   const [student, subjects] = await Promise.all([
     getStudentDetail(id, startDate, endDate),
@@ -32,7 +52,7 @@ export default async function StudentDetailPage({
     .sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
   const overallConsistency = consistencyScore(allEntriesSorted);
 
-  const hasFilter = !!(startDate || endDate);
+  const hasFilter = range !== "all";
 
   return (
     <div className="flex flex-col gap-6">
@@ -55,14 +75,16 @@ export default async function StudentDetailPage({
             <ConsistencyBadge score={overallConsistency} />
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <DateRangeFilter
+        <div className="flex items-center gap-4">
+          <StudentDateFilter
             studentId={student.id}
-            initialStartDate={startDate}
-            initialEndDate={endDate}
+            range={range}
+            monthValue={monthVal}
           />
-          <AddScoreDrawer studentId={student.id} subjects={subjects} />
-          <StudentHeaderActions student={student} />
+          <div className="flex items-center gap-2">
+            <AddScoreDrawer studentId={student.id} subjects={subjects} />
+            <StudentHeaderActions student={student} />
+          </div>
         </div>
       </div>
 
