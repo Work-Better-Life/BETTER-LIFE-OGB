@@ -171,7 +171,7 @@ export async function getStudentsForExport(search?: string, window: ExportWindow
     .filter((student) => window === "all" || student.lastRecordedAt !== null);
 }
 
-export async function getStudentDetail(id: string) {
+export async function getStudentDetail(id: string, startDate?: string, endDate?: string) {
   const student = await prisma.student.findUnique({
     where: { id },
     include: {
@@ -184,12 +184,24 @@ export async function getStudentDetail(id: string) {
 
   if (!student) return null;
 
+  // Filter scores by date range in memory
+  let filteredScores = student.scores;
+  if (startDate) {
+    const start = new Date(startDate);
+    filteredScores = filteredScores.filter((s) => s.recordedAt >= start);
+  }
+  if (endDate) {
+    const end = new Date(endDate);
+    end.setUTCHours(23, 59, 59, 999);
+    filteredScores = filteredScores.filter((s) => s.recordedAt <= end);
+  }
+
   const bySubject = new Map<
     string,
     { subjectId: string; subjectName: string; topics: Map<string, typeof student.scores> }
   >();
 
-  for (const entry of student.scores) {
+  for (const entry of filteredScores) {
     const subject = entry.topic.subject;
     if (!bySubject.has(subject.id)) {
       bySubject.set(subject.id, { subjectId: subject.id, subjectName: subject.name, topics: new Map() });
@@ -207,8 +219,9 @@ export async function getStudentDetail(id: string) {
     firstName: student.firstName,
     lastName: student.lastName,
     createdAt: student.createdAt,
-    averagePercentage: averagePercentage(student.scores),
-    scoreCount: student.scores.length,
+    averagePercentage: averagePercentage(filteredScores),
+    scoreCount: filteredScores.length,
+    rawScores: filteredScores,
     subjects: Array.from(bySubject.values()).map((subject) => ({
       subjectId: subject.subjectId,
       subjectName: subject.subjectName,

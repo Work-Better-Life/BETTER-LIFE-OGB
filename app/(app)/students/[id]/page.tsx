@@ -8,10 +8,22 @@ import { Badge } from "@/components/ui/badge";
 import { TopicCard } from "@/components/students/topic-card";
 import { AddScoreDrawer } from "@/components/students/add-score-drawer";
 import { StudentHeaderActions } from "@/components/students/student-header-actions";
+import { DateRangeFilter } from "@/components/students/date-range-filter";
 
-export default async function StudentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StudentDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ startDate?: string; endDate?: string }>;
+}) {
   const { id } = await params;
-  const [student, subjects] = await Promise.all([getStudentDetail(id), listSubjectsForPicker()]);
+  const { startDate, endDate } = await searchParams;
+
+  const [student, subjects] = await Promise.all([
+    getStudentDetail(id, startDate, endDate),
+    listSubjectsForPicker(),
+  ]);
 
   if (!student) notFound();
 
@@ -19,6 +31,8 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     .flatMap((s) => s.topics.flatMap((t) => t.entries))
     .sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
   const overallConsistency = consistencyScore(allEntriesSorted);
+
+  const hasFilter = !!(startDate || endDate);
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,6 +56,11 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <DateRangeFilter
+            studentId={student.id}
+            initialStartDate={startDate}
+            initialEndDate={endDate}
+          />
           <AddScoreDrawer studentId={student.id} subjects={subjects} />
           <StudentHeaderActions student={student} />
         </div>
@@ -49,14 +68,18 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
 
       {student.subjects.length === 0 ? (
         <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-foreground-muted">
-          No scores recorded yet. Add the first score to start tracking {student.firstName}&apos;s progress.
+          {hasFilter ? (
+            <p>No scores recorded in this date range. Try adjusting your filters.</p>
+          ) : (
+            <p>No scores recorded yet. Add the first score to start tracking {student.firstName}&apos;s progress.</p>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-6">
           {student.subjects.map((subject) => (
             <section key={subject.subjectId} className="rounded-lg border border-border bg-surface p-6">
               <h2 className="font-display text-lg text-foreground">{subject.subjectName}</h2>
-              <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-4">
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {subject.topics.map((topic) => (
                   <TopicCard
                     key={topic.topicId}
