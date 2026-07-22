@@ -30,8 +30,7 @@ export function StudentDateFilter({
   const hasFilter = !!(startDate || endDate || q);
   const [open, setOpen] = useState(hasFilter);
 
-  const startRef = useRef<HTMLInputElement>(null);
-  const endRef = useRef<HTMLInputElement>(null);
+
 
   const [prevQ, setPrevQ] = useState(q);
   const [searchValue, setSearchValue] = useState(q ?? "");
@@ -141,10 +140,8 @@ export function StudentDateFilter({
             {/* Date Pickers */}
             <div className="flex items-center gap-2 mt-1 mb-2">
               {/* From date button */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => startRef.current?.showPicker()}
+              <label className="relative cursor-pointer">
+                <span
                   className={cn(
                     "flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[13px] font-medium transition-colors",
                     startDate
@@ -163,17 +160,17 @@ export function StudentDateFilter({
                     <path d="M5 1.5V4M11 1.5V4M2 6.5h12" />
                   </svg>
                   {startDate ? formatDate(startDate) : "From"}
-                </button>
+                </span>
                 <input
-                  ref={startRef}
+
                   type="date"
-                  className="invisible absolute inset-0 h-0 w-0"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   value={startDate || ""}
                   max={endDate || undefined}
                   onChange={(e) => updateParams(e.target.value, endDate)}
                   tabIndex={-1}
                 />
-              </div>
+              </label>
 
               {/* Arrow separator */}
               <svg
@@ -191,10 +188,8 @@ export function StudentDateFilter({
               </svg>
 
               {/* To date button */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => endRef.current?.showPicker()}
+              <label className="relative cursor-pointer">
+                <span
                   className={cn(
                     "flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[13px] font-medium transition-colors",
                     endDate
@@ -213,17 +208,17 @@ export function StudentDateFilter({
                     <path d="M5 1.5V4M11 1.5V4M2 6.5h12" />
                   </svg>
                   {endDate ? formatDate(endDate) : "To"}
-                </button>
+                </span>
                 <input
-                  ref={endRef}
+
                   type="date"
-                  className="invisible absolute inset-0 h-0 w-0"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   value={endDate || ""}
                   min={startDate || undefined}
                   onChange={(e) => updateParams(startDate, e.target.value)}
                   tabIndex={-1}
                 />
-              </div>
+              </label>
 
               {/* Clear button — only when a filter is active */}
               {hasFilter && (
