@@ -28,7 +28,9 @@ export async function loginAction(
     return { error: "Enter a valid email and password." };
   }
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  const user = await prisma.user.findUnique({
+    where: { email: parsed.data.email.toLowerCase() },
+  });
   if (!user) {
     return { error: "Incorrect email or password." };
   }
