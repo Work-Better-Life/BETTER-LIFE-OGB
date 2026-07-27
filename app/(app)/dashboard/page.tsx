@@ -12,6 +12,7 @@ import {
   normalizeStatWindow,
   normalizeMonthValue,
   monthValueLabel,
+  type StatWindow,
 } from "@/lib/stat-window";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { TrendChart } from "@/components/dashboard/trend-chart";
@@ -19,11 +20,18 @@ import { TrendRangeSelect } from "@/components/dashboard/trend-range-select";
 import { ChartModeToggle } from "@/components/dashboard/chart-mode-toggle";
 import { StatWindowToggle } from "@/components/dashboard/stat-window-toggle";
 import { MonthYearToggle } from "@/components/dashboard/month-year-toggle";
+import { TopPerformersOverflow } from "@/components/dashboard/top-performers-overflow";
 import { DeltaIndicator } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 function parseTrendRange(value: string | undefined): TrendRange {
   return value && value in TREND_RANGES ? (value as TrendRange) : "30d";
+}
+
+function notTestedLabel(window: StatWindow, monthValue: string): string {
+  return window === "month"
+    ? `Not tested in ${monthValueLabel(monthValue)}`
+    : "Not tested this week";
 }
 
 export default async function DashboardPage({
@@ -55,14 +63,17 @@ export default async function DashboardPage({
   const topMonth = normalizeMonthValue(topMonthParam ?? defaultMonth);
   const improvedMonth = normalizeMonthValue(improvedMonthParam ?? defaultMonth);
 
-  const [counts, trend, topPerformers, mostImproved, recent] =
+  const [counts, trend, rankedPerformers, mostImproved, recent] =
     await Promise.all([
       getDashboardCounts(),
       getScoreTrend(range),
-      getTopPerformers(5, topWindow, topMonth),
+      getTopPerformers(Infinity, topWindow, topMonth),
       getMostImproved(5, improvedWindow, improvedMonth),
       getRecentScoreEntries(10),
     ]);
+
+  const topPerformers = rankedPerformers.slice(0, 5);
+  const remainingPerformers = rankedPerformers.slice(5);
 
   return (
     <div className="flex flex-col gap-8">
@@ -161,14 +172,25 @@ export default async function DashboardPage({
                     <span className="text-sm text-foreground">
                       {student.firstName} {student.lastName}
                     </span>
-                    <span className="font-display text-sm text-primary-strong">
-                      {student.averagePercentage?.toFixed(1)}%
-                    </span>
+                    {student.testedInWindow ? (
+                      <span className="font-display text-sm text-primary-strong">
+                        {student.averagePercentage?.toFixed(1)}%
+                      </span>
+                    ) : (
+                      <span className="text-xs italic text-foreground-muted">
+                        {notTestedLabel(topWindow, topMonth)}
+                      </span>
+                    )}
                   </Link>
                 </li>
               ))}
             </ul>
           )}
+          <TopPerformersOverflow
+            students={remainingPerformers}
+            startRank={6}
+            notTestedLabel={notTestedLabel(topWindow, topMonth)}
+          />
         </section>
 
         <section className="rounded-lg border border-border bg-surface p-6">

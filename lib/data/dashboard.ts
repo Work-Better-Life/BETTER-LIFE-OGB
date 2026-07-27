@@ -221,6 +221,7 @@ export async function getTopPerformers(limit = 5, window: StatWindow = "month", 
         firstName: student.firstName,
         lastName: student.lastName,
         averagePercentage: averagePercentageValue,
+        testedInWindow: windowScores.length > 0,
       };
     })
     .filter((s) => s.averagePercentage !== null)
