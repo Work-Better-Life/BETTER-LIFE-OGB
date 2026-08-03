@@ -1,9 +1,8 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/cn";
-import { Input } from "@/components/ui/input";
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
@@ -18,46 +17,15 @@ export function StudentDateFilter({
   studentId,
   startDate,
   endDate,
-  q,
 }: {
   studentId: string;
   startDate?: string;
   endDate?: string;
-  q?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const hasFilter = !!(startDate || endDate || q);
+  const hasFilter = !!(startDate || endDate);
   const [open, setOpen] = useState(hasFilter);
-
-
-
-  const [prevQ, setPrevQ] = useState(q);
-  const [searchValue, setSearchValue] = useState(q ?? "");
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  if (q !== prevQ) {
-    setPrevQ(q);
-    setSearchValue(q ?? "");
-  }
-
-  useEffect(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      const currentQ = searchParams.get("q") ?? "";
-      if (searchValue !== currentQ) {
-        const params = new URLSearchParams(searchParams);
-        if (searchValue) params.set("q", searchValue);
-        else params.delete("q");
-        router.replace(`/students/${studentId}?${params.toString()}`, {
-          scroll: false,
-        });
-      }
-    }, 250);
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, [searchValue, searchParams, studentId, router]);
 
   function updateParams(start?: string, end?: string) {
     const params = new URLSearchParams(searchParams);
@@ -65,19 +33,15 @@ export function StudentDateFilter({
     else params.delete("startDate");
     if (end) params.set("endDate", end);
     else params.delete("endDate");
-    if (searchValue) params.set("q", searchValue);
-    else params.delete("q");
     router.replace(`/students/${studentId}?${params.toString()}`, {
       scroll: false,
     });
   }
 
   function handleClear() {
-    setSearchValue("");
     const params = new URLSearchParams(searchParams);
     params.delete("startDate");
     params.delete("endDate");
-    params.delete("q");
     router.replace(`/students/${studentId}?${params.toString()}`, {
       scroll: false,
     });
@@ -129,16 +93,8 @@ export function StudentDateFilter({
       >
         <div className="overflow-hidden">
           <div className="flex flex-col items-end w-full pt-0">
-            {/* Search Bar */}
-            <Input
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              placeholder="Search topics..."
-              className="h-9 text-[13px] px-3 w-full max-w-[260px] md:max-w-[280px] mt-3 mb-3"
-            />
-
             {/* Date Pickers */}
-            <div className="flex items-center gap-2 mt-1 mb-2">
+            <div className="flex items-center gap-2 mt-3 mb-2">
               {/* From date button */}
               <label className="relative cursor-pointer">
                 <span
