@@ -128,6 +128,10 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
       return;
     }
     const point = coords[activeIndex];
+    if (!point) {
+      setCardStyle(null);
+      return;
+    }
     const leftPx = svgRect.left - wrapperRect.left + (point.x / chartWidth) * svgRect.width;
     const topPx = svgRect.top - wrapperRect.top + (point.y / HEIGHT) * svgRect.height;
     const bottomPx = wrapperRect.height - topPx + CARD_GAP;

@@ -52,9 +52,9 @@ export function StudentOverview({
             : "No scores recorded in this range. Try a wider time range."}
         </p>
       ) : view === "trend" ? (
-        <TrendGraph studentId={studentId} points={points} />
+        <TrendGraph key={range} studentId={studentId} points={points} />
       ) : (
-        <SubjectComparison subjects={subjects} />
+        <SubjectComparison key={range} subjects={subjects} />
       )}
     </div>
   );
