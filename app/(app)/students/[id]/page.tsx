@@ -7,30 +7,28 @@ import { ConsistencyBadge } from "@/components/ui/badge";
 import { Badge } from "@/components/ui/badge";
 import { AddScoreDrawer } from "@/components/students/add-score-drawer";
 import { StudentHeaderActions } from "@/components/students/student-header-actions";
-import { StudentDateFilter } from "@/components/students/student-date-filter";
 import { StudentOverview } from "@/components/students/student-overview";
 import { buildTrendPoints } from "@/lib/trend-points";
+import { STUDENT_OVERVIEW_RANGES, rangeStartISO, type StudentOverviewRange } from "@/lib/trend-ranges";
+
+function parseRange(value: string | undefined): StudentOverviewRange {
+  return value && value in STUDENT_OVERVIEW_RANGES ? (value as StudentOverviewRange) : "all";
+}
 
 export default async function StudentDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ startDate?: string; endDate?: string }>;
+  searchParams: Promise<{ range?: string }>;
 }) {
   const { id } = await params;
-  const { startDate, endDate } = await searchParams;
-
-  // Convert date strings (YYYY-MM-DD) to ISO for the data layer
-  const startISO = startDate
-    ? new Date(startDate + "T00:00:00Z").toISOString()
-    : undefined;
-  const endISO = endDate
-    ? new Date(endDate + "T23:59:59.999Z").toISOString()
-    : undefined;
+  const { range: rangeParam } = await searchParams;
+  const range = parseRange(rangeParam);
+  const startISO = rangeStartISO(range);
 
   const [student, subjects] = await Promise.all([
-    getStudentDetail(id, startISO, endISO),
+    getStudentDetail(id, startISO),
     listSubjectsForPicker(),
   ]);
 
@@ -38,8 +36,6 @@ export default async function StudentDetailPage({
 
   const allEntriesSorted = [...student.rawScores].sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
   const overallConsistency = consistencyScore(allEntriesSorted);
-
-  const hasFilter = !!(startDate || endDate);
 
   const trendPoints = buildTrendPoints(student.rawScores);
   const comparisonSubjects = student.subjects.map((subject) => ({
@@ -71,30 +67,19 @@ export default async function StudentDetailPage({
             <ConsistencyBadge score={overallConsistency} />
           </div>
         </div>
-        <div className="flex flex-col-reverse sm:flex-row sm:items-center gap-4 w-full sm:w-auto items-end">
-          <StudentDateFilter
-            studentId={student.id}
-            startDate={startDate}
-            endDate={endDate}
-          />
-          <div className="flex items-center gap-2">
-            <AddScoreDrawer studentId={student.id} subjects={subjects} />
-            <StudentHeaderActions student={student} />
-          </div>
+        <div className="flex items-center gap-2">
+          <AddScoreDrawer studentId={student.id} subjects={subjects} />
+          <StudentHeaderActions student={student} />
         </div>
       </div>
 
-      {student.rawScores.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-foreground-muted">
-          {hasFilter ? (
-            <p>No scores recorded in this date range. Try adjusting your filters.</p>
-          ) : (
-            <p>No scores recorded yet. Add the first score to start tracking {student.firstName}&apos;s progress.</p>
-          )}
-        </div>
-      ) : (
-        <StudentOverview studentId={student.id} points={trendPoints} subjects={comparisonSubjects} />
-      )}
+      <StudentOverview
+        studentId={student.id}
+        studentFirstName={student.firstName}
+        range={range}
+        points={trendPoints}
+        subjects={comparisonSubjects}
+      />
     </div>
   );
 }

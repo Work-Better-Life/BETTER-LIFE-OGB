@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { DeltaIndicator } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
@@ -8,13 +8,19 @@ import type { TrendGraphPoint } from "@/lib/trend-points";
 
 export type { TrendGraphPoint, TrendGraphSubject } from "@/lib/trend-points";
 
-const WIDTH = 760;
+const BASE_WIDTH = 760;
+// Floor spacing between points, so the chart never gets cramped once there
+// are many test dates — it stretches to fill the panel below this point
+// count, and switches to a horizontally scrollable fixed spacing above it.
+const MIN_STEP_X = 56;
 const HEIGHT = 300;
 const PAD_LEFT = 45;
 const PAD_RIGHT = 15;
 const PAD_TOP = 20;
 const PAD_BOTTOM = 35;
 const GRID_VALUES = [0, 25, 50, 75, 100];
+const CARD_WIDTH = 260;
+const CARD_GAP = 16;
 
 function formatDate(iso: string) {
   return new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", {
@@ -35,10 +41,32 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [pinnedIndex, setPinnedIndex] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [tick, setTick] = useState(0);
+  const [cardStyle, setCardStyle] = useState<React.CSSProperties | null>(null);
 
-  const innerWidth = WIDTH - PAD_LEFT - PAD_RIGHT;
+  const baseInnerWidth = BASE_WIDTH - PAD_LEFT - PAD_RIGHT;
+  const requiredInnerWidth = points.length > 1 ? MIN_STEP_X * (points.length - 1) : baseInnerWidth;
+  const innerWidth = Math.max(baseInnerWidth, requiredInnerWidth);
+  const chartWidth = innerWidth + PAD_LEFT + PAD_RIGHT;
   const innerHeight = HEIGHT - PAD_TOP - PAD_BOTTOM;
   const stepX = points.length > 1 ? innerWidth / (points.length - 1) : 0;
+
+  // Once there are enough points to force horizontal scrolling, default to
+  // showing the most recent dates rather than the oldest.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [chartWidth]);
+
+  // Recompute the hover/pin card's measured position on resize (the DOM
+  // rects it's based on change) — scroll bumps the same tick via onScroll.
+  useEffect(() => {
+    const onResize = () => setTick((t) => t + 1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const coords = points.map((p, i) => ({
     x: PAD_LEFT + i * stepX,
@@ -58,7 +86,7 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
     const fraction = (evt.clientX - rect.left) / rect.width;
-    const targetX = fraction * WIDTH;
+    const targetX = fraction * chartWidth;
     let nearest = 0;
     let nearestDist = Infinity;
     coords.forEach((c, i) => {
@@ -81,13 +109,47 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
 
   const labelStep = Math.max(1, Math.ceil(points.length / 8));
 
+  // Measured in px (not viewBox %) so the card can be a sibling of the
+  // scrollable chart — living outside it means it's never clipped by the
+  // scroll container's overflow, no matter where the point sits. Reading
+  // layout via getBoundingClientRect and syncing it to state is the standard
+  // escape hatch for this (same technique popover/tooltip libraries use) —
+  // it can't be computed during render since refs aren't readable there.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (activeIndex === null) {
+      setCardStyle(null);
+      return;
+    }
+    const svgRect = svgRef.current?.getBoundingClientRect();
+    const wrapperRect = wrapperRef.current?.getBoundingClientRect();
+    if (!svgRect || !wrapperRect) {
+      setCardStyle(null);
+      return;
+    }
+    const point = coords[activeIndex];
+    const leftPx = svgRect.left - wrapperRect.left + (point.x / chartWidth) * svgRect.width;
+    const topPx = svgRect.top - wrapperRect.top + (point.y / HEIGHT) * svgRect.height;
+    const bottomPx = wrapperRect.height - topPx + CARD_GAP;
+    const translate =
+      leftPx < CARD_WIDTH / 2 ? "0%" : leftPx > wrapperRect.width - CARD_WIDTH / 2 ? "-100%" : "-50%";
+    setCardStyle({ left: leftPx, bottom: bottomPx, transform: `translateX(${translate})` });
+    // `coords` is a fresh array every render, fully derived from `points` +
+    // `chartWidth` — depending on those instead avoids re-running (and thus
+    // re-setting state) on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIndex, chartWidth, points, tick]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative w-full">
+      <div ref={wrapperRef} className="relative">
+      <div ref={scrollRef} className="overflow-x-auto" onScroll={() => setTick((t) => t + 1)}>
+        <div style={{ width: "100%", minWidth: chartWidth }}>
         <svg
           ref={svgRef}
-          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-          className="w-full overflow-visible"
+          viewBox={`0 0 ${chartWidth} ${HEIGHT}`}
+          className="block w-full overflow-visible"
           preserveAspectRatio="xMidYMid meet"
           onMouseMove={handleMove}
           onMouseLeave={() => setHoverIndex(null)}
@@ -105,7 +167,7 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
               <g key={pct}>
                 <line
                   x1={PAD_LEFT}
-                  x2={WIDTH - PAD_RIGHT}
+                  x2={chartWidth - PAD_RIGHT}
                   y1={y}
                   y2={y}
                   stroke="var(--color-border)"
@@ -182,22 +244,16 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
             );
           })}
         </svg>
+        </div>
+      </div>
 
-        {active && (() => {
-          const xPct = (active.x / WIDTH) * 100;
-          const yPct = (active.y / HEIGHT) * 100;
-          const GAP = 16;
-          return (
+      {active && cardStyle && (
           <div
             className={cn(
               "absolute w-65 rounded-lg border border-border bg-surface shadow-floating",
               isPinned ? "pointer-events-auto z-20" : "pointer-events-none"
             )}
-            style={{
-              left: `${xPct}%`,
-              bottom: `calc(${100 - yPct}% + ${GAP}px)`,
-              transform: xPct < 25 ? "translateX(0%)" : xPct > 75 ? "translateX(-100%)" : "translateX(-50%)",
-            }}
+            style={cardStyle}
           >
             <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
               <div>
@@ -246,8 +302,7 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
               )}
             </ul>
           </div>
-          );
-        })()}
+      )}
       </div>
 
       <p className="flex items-center gap-1.5 text-[11px] text-foreground-muted">
