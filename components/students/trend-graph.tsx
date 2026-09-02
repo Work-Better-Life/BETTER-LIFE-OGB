@@ -22,6 +22,11 @@ const GRID_VALUES = [0, 25, 50, 75, 100];
 const CARD_WIDTH = 260;
 const CARD_GAP = 16;
 
+/** Score sums are usually whole numbers; show at most one decimal when they aren't. */
+function formatScore(n: number) {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
 function formatDate(iso: string) {
   return new Date(`${iso}T00:00:00`).toLocaleDateString("en-US", {
     month: "short",
@@ -263,7 +268,10 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
               <div>
                 <p className="text-xs font-semibold text-foreground">{formatDate(active.point.date)}</p>
                 <p className="text-[11px] text-foreground-muted">
-                  Average <span className="font-semibold text-primary-strong">{active.point.average.toFixed(1)}%</span>
+                  Score{" "}
+                  <span className="font-semibold text-primary-strong">
+                    {formatScore(active.point.scored)}/{formatScore(active.point.total)}
+                  </span>
                 </p>
               </div>
               {isPinned && (
@@ -289,7 +297,9 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
                     >
                       <span className="font-medium text-foreground">{s.name}</span>
                       <span className="flex items-center gap-1.5">
-                        <span className="text-foreground-muted">{s.percentage.toFixed(0)}%</span>
+                        <span className="text-foreground-muted">
+                          {formatScore(s.scored)}/{formatScore(s.total)}
+                        </span>
                         <DeltaIndicator value={s.delta} pill />
                       </span>
                     </Link>
@@ -298,7 +308,9 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
                   <li key={s.subjectId} className="flex items-center justify-between gap-2 px-2 py-1.5 text-xs">
                     <span className="font-medium text-foreground">{s.name}</span>
                     <span className="flex items-center gap-1.5">
-                      <span className="text-foreground-muted">{s.percentage.toFixed(0)}%</span>
+                      <span className="text-foreground-muted">
+                        {formatScore(s.scored)}/{formatScore(s.total)}
+                      </span>
                       <DeltaIndicator value={s.delta} pill />
                     </span>
                   </li>

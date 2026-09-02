@@ -4,12 +4,16 @@ export type TrendGraphSubject = {
   subjectId: string;
   name: string;
   percentage: number;
+  scored: number;
+  total: number;
   delta: number | null;
 };
 
 export type TrendGraphPoint = {
   date: string; // ISO yyyy-mm-dd
   average: number;
+  scored: number;
+  total: number;
   subjects: TrendGraphSubject[];
 };
 
@@ -49,12 +53,16 @@ export function buildTrendPoints(rawScores: ScoreWithSubject[]): TrendGraphPoint
       const previous = lastPercentageBySubject.get(subjectId) ?? null;
       const delta = previous !== null ? percentage - previous : null;
       lastPercentageBySubject.set(subjectId, percentage);
-      return { subjectId, name: entries[0].name, percentage, delta };
+      const scored = entries.reduce((sum, e) => sum + e.value, 0);
+      const total = entries.reduce((sum, e) => sum + e.maxScore, 0);
+      return { subjectId, name: entries[0].name, percentage, scored, total, delta };
     });
 
     return {
       date,
       average: averagePercentage(entriesThatDate) ?? 0,
+      scored: entriesThatDate.reduce((sum, e) => sum + e.value, 0),
+      total: entriesThatDate.reduce((sum, e) => sum + e.maxScore, 0),
       subjects,
     };
   });
