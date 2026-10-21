@@ -1,0 +1,40 @@
+-- CreateTable
+CREATE TABLE "StudentProfile" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "studentId" TEXT NOT NULL,
+    "gender" TEXT NOT NULL,
+    "dateOfBirth" DATETIME NOT NULL,
+    "houseAddress" TEXT,
+    "schoolName" TEXT NOT NULL,
+    "schoolAddress" TEXT NOT NULL,
+    "currentClass" TEXT NOT NULL,
+    "coreSubjects" TEXT NOT NULL,
+    "strugglingSubjects" TEXT NOT NULL,
+    "hasTakenCbt" BOOLEAN NOT NULL,
+    "computerComfort" INTEGER NOT NULL,
+    "jambYear" INTEGER NOT NULL,
+    "jambTargetScore" TEXT NOT NULL,
+    "attendedExtraLessons" BOOLEAN NOT NULL,
+    "biggestChallenge" TEXT,
+    "strictCbtWilling" BOOLEAN NOT NULL,
+    "followUpWilling" BOOLEAN,
+    "mocksCommitment" BOOLEAN NOT NULL,
+    "motivation" TEXT NOT NULL,
+    "guardianName" TEXT NOT NULL,
+    "guardianAddress" TEXT NOT NULL,
+    "guardianPhone" TEXT NOT NULL,
+    "guardianEmail" TEXT,
+    "guardianSupports" BOOLEAN NOT NULL,
+    "dataConsent" BOOLEAN NOT NULL,
+    "additionalInfo" TEXT,
+    "university" TEXT NOT NULL,
+    "course" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'admitted',
+    "dateJoined" DATETIME NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "StudentProfile_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StudentProfile_studentId_key" ON "StudentProfile"("studentId");

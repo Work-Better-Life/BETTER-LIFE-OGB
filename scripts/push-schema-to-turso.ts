@@ -8,6 +8,8 @@ import { createClient } from "@libsql/client";
 // existing migration.sql file straight to Turso via the libsql client —
 // the same SQL Prisma already generated, just executed a different way.
 // Re-run this after adding a new migration folder to keep Turso in sync.
+// Applied migrations are recorded in an _applied_migrations table so each
+// one only ever runs once.
 
 function splitStatements(sql: string): string[] {
   const withoutComments = sql
@@ -34,12 +36,36 @@ async function main() {
     .map((d) => d.name)
     .sort();
 
+  await client.execute(
+    "CREATE TABLE IF NOT EXISTS _applied_migrations (name TEXT NOT NULL PRIMARY KEY, appliedAt TEXT NOT NULL)"
+  );
+  const tracked = await client.execute("SELECT name FROM _applied_migrations");
+  const applied = new Set(tracked.rows.map((row) => String(row.name)));
+
+  // Databases pushed before tracking existed already have the initial
+  // migration's tables — record it as applied instead of re-running it.
+  if (applied.size === 0 && folders.length > 0) {
+    const existing = await client.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'User'");
+    if (existing.rows.length > 0) {
+      await client.execute({
+        sql: "INSERT INTO _applied_migrations (name, appliedAt) VALUES (?, ?)",
+        args: [folders[0], new Date().toISOString()],
+      });
+      applied.add(folders[0]);
+    }
+  }
+
   for (const folder of folders) {
+    if (applied.has(folder)) continue;
     const path = join(migrationsDir, folder, "migration.sql");
     const sql = readFileSync(path, "utf8");
     const statements = splitStatements(sql);
     console.log(`Applying ${folder} (${statements.length} statements)...`);
     await client.migrate(statements);
+    await client.execute({
+      sql: "INSERT INTO _applied_migrations (name, appliedAt) VALUES (?, ?)",
+      args: [folder, new Date().toISOString()],
+    });
     console.log(`✓ Applied ${folder}`);
   }
 

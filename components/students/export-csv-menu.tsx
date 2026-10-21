@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { EXPORT_WINDOW_LABELS, type ExportWindow } from "@/lib/export-window";
 
 const OPTIONS: ExportWindow[] = ["all", "2months", "month", "week"];
 
 export function ExportCsvMenu() {
   const [open, setOpen] = useState(false);
+  const cohort = useSearchParams().get("cohort");
+  const cohortQuery = cohort ? `&cohort=${encodeURIComponent(cohort)}` : "";
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,7 +42,7 @@ export function ExportCsvMenu() {
           {OPTIONS.map((option) => (
             <a
               key={option}
-              href={`/api/export/students?window=${option}`}
+              href={`/api/export/students?window=${option}${cohortQuery}`}
               onClick={() => setOpen(false)}
               className="block rounded-sm px-3 py-1.5 text-[13px] text-foreground transition-colors hover:bg-surface-muted"
             >

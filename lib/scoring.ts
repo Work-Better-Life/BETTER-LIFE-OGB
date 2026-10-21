@@ -9,6 +9,15 @@ export function toPercentage(entry: ScoreLike): number {
   return (entry.value / entry.maxScore) * 100;
 }
 
+/**
+ * Keeps a percentage inside the 0–100 range charts are drawn in. Out-of-range
+ * data (e.g. a score entered above its max) would otherwise plot outside the
+ * chart area. Use only for drawing — displayed numbers stay as they are.
+ */
+export function plotPercent(percentage: number): number {
+  return Math.min(100, Math.max(0, percentage));
+}
+
 export function averagePercentage(entries: ScoreLike[]): number | null {
   if (entries.length === 0) return null;
   const sum = entries.reduce((total, entry) => total + toPercentage(entry), 0);

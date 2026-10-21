@@ -46,9 +46,11 @@ function NavLinks({
 
 export function AppShell({
   userName,
+  canWrite,
   children,
 }: {
   userName: string;
+  canWrite: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -142,6 +144,14 @@ export function AppShell({
             Welcome back, {userName}
           </span>
           <div className="flex items-center gap-2">
+            {!canWrite && (
+              <span
+                title="This account can view everything but can't make changes."
+                className="rounded-sm bg-surface-muted px-2 py-1 text-xs font-medium tracking-wide text-foreground-muted"
+              >
+                View only
+              </span>
+            )}
             <ThemeToggle />
           </div>
         </header>

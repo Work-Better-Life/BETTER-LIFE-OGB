@@ -12,16 +12,108 @@ model User {
   passwordHash   String
   name           String
   sessionVersion Int      @default(0)
+  // "admin" | "viewer". Nullable so accounts created before roles existed need no
+  // backfill; null is treated as admin.
+  role           String?
   createdAt      DateTime @default(now())
 }
 
 model Student {
-  id           String       @id @default(cuid())
-  serialNumber String       @unique
-  firstName    String
-  lastName     String
-  createdAt    DateTime     @default(now())
-  scores       ScoreEntry[]
+  id            String          @id @default(cuid())
+  serialNumber  String          @unique
+  firstName     String
+  lastName      String
+  createdAt     DateTime        @default(now())
+  scores        ScoreEntry[]
+  profile       StudentProfile?
+  photo         StudentPhoto?
+  // Nullable so existing students need no backfill; null means "No cohort".
+  cohortId      String?
+  cohort        Cohort?         @relation(fields: [cohortId], references: [id], onDelete: SetNull)
+  // Set only for students created by a file import, so the whole import can be
+  // undone. Null for everyone added by hand or before imports existed.
+  importBatchId String?
+  importBatch   StudentImport?  @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@index([importBatchId])
+}
+
+// One registration-file import, kept so it can be listed and undone as a unit.
+model StudentImport {
+  id           String    @id @default(cuid())
+  fileName     String?
+  cohortName   String? // snapshot of the cohort chosen at upload, for display
+  studentCount Int
+  createdAt    DateTime  @default(now())
+  students     Student[]
+}
+
+// Bio data from the registration form. One-to-one with Student and optional,
+// so students created before profiles existed need no backfill.
+model StudentProfile {
+  id        String  @id @default(cuid())
+  studentId String  @unique
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // Personal
+  gender       String
+  dateOfBirth  DateTime
+  houseAddress String?
+
+  // School
+  schoolName    String
+  schoolAddress String
+  currentClass  String
+
+  // Exam readiness
+  coreSubjects         String // JSON array of exactly 4 subject names
+  strugglingSubjects   String // JSON array of subject names
+  hasTakenCbt          Boolean
+  computerComfort      Int // 1-5
+  jambYear             Int // 2026 | 2027
+  jambTargetScore      String
+  attendedExtraLessons Boolean
+  biggestChallenge     String?
+  strictCbtWilling     Boolean
+  followUpWilling      Boolean?
+  mocksCommitment      Boolean
+  motivation           String
+
+  // Guardian
+  guardianName     String
+  guardianAddress  String
+  guardianPhone    String
+  guardianEmail    String?
+  guardianSupports Boolean
+  dataConsent      Boolean
+
+  // Programme
+  additionalInfo String?
+  university     String
+  course         String
+  status         String   @default("admitted") // admitted | deferred | dropped_out
+  dateJoined     DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// A named group of students (e.g. "2026"). Separate from a student's join date.
+model Cohort {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  students  Student[]
+}
+
+// Profile picture, kept in its own table so it never rides along on student
+// list queries. `data` is a small, client-resized JPEG data URL.
+model StudentPhoto {
+  id        String   @id @default(cuid())
+  studentId String   @unique
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  data      String
+  updatedAt DateTime @updatedAt
 }
 
 model Subject {
@@ -44,16 +136,34 @@ model Topic {
 }
 
 model ScoreEntry {
-  id         String   @id @default(cuid())
-  studentId  String
-  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  topicId    String
-  topic      Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  value      Float
-  maxScore   Int
-  note       String?
-  recordedAt DateTime
-  createdAt  DateTime @default(now())
+  id            String       @id @default(cuid())
+  studentId     String
+  student       Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  topicId       String
+  topic         Topic        @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  value         Float
+  maxScore      Int
+  note          String?
+  recordedAt    DateTime
+  createdAt     DateTime     @default(now())
+  // Set only for scores created by a CSV import, so the whole import can be
+  // undone. Null for everything entered by hand or before imports existed.
+  importBatchId String?
+  importBatch   ScoreImport? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
 
   @@index([studentId, topicId, recordedAt])
+  @@index([importBatchId])
+}
+
+// One CSV score import. Kept so it can be listed and undone as a unit.
+model ScoreImport {
+  id              String       @id @default(cuid())
+  testName        String
+  fileName        String?
+  cohortName      String? // snapshot of the cohort chosen at upload, for display
+  recordedAt      DateTime
+  entryCount      Int
+  createdTopicIds String       @default("[]") // JSON array: topics this import created, removed again on undo if empty
+  createdAt       DateTime     @default(now())
+  entries         ScoreEntry[]
 }

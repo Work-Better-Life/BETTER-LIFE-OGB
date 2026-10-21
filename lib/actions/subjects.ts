@@ -1,16 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/auth";
+import { guardWrite, requireWriter } from "@/lib/auth";
 import * as subjectsData from "@/lib/data/subjects";
-
-async function requireSession() {
-  const session = await getSession();
-  if (!session) redirect("/login");
-  return session;
-}
 
 export type ActionState = { error?: string };
 
@@ -22,7 +15,8 @@ export async function createSubjectAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  await requireSession();
+  const denied = await guardWrite();
+  if (denied) return { error: denied };
   const parsed = subjectSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   try {
@@ -39,7 +33,8 @@ export async function updateSubjectAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  await requireSession();
+  const denied = await guardWrite();
+  if (denied) return { error: denied };
   const parsed = subjectSchema.safeParse({ name: formData.get("name") });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   try {
@@ -52,7 +47,7 @@ export async function updateSubjectAction(
 }
 
 export async function deleteSubjectAction(id: string) {
-  await requireSession();
+  await requireWriter();
   await subjectsData.deleteSubject(id);
   revalidatePath("/subjects");
   revalidatePath("/dashboard");
@@ -68,7 +63,8 @@ export async function createTopicAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  await requireSession();
+  const denied = await guardWrite();
+  if (denied) return { error: denied };
   const parsed = topicSchema.safeParse({
     name: formData.get("name"),
     defaultMaxScore: formData.get("defaultMaxScore"),
@@ -88,7 +84,8 @@ export async function updateTopicAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  await requireSession();
+  const denied = await guardWrite();
+  if (denied) return { error: denied };
   const parsed = topicSchema.safeParse({
     name: formData.get("name"),
     defaultMaxScore: formData.get("defaultMaxScore"),
@@ -104,7 +101,7 @@ export async function updateTopicAction(
 }
 
 export async function deleteTopicAction(id: string) {
-  await requireSession();
+  await requireWriter();
   await subjectsData.deleteTopic(id);
   revalidatePath("/subjects");
   revalidatePath("/dashboard");

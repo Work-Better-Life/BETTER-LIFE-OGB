@@ -23,6 +23,7 @@ import { MonthYearToggle } from "@/components/dashboard/month-year-toggle";
 import { TopPerformersOverflow } from "@/components/dashboard/top-performers-overflow";
 import { DeltaIndicator } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { requireSession } from "@/lib/auth";
 
 function parseTrendRange(value: string | undefined): TrendRange {
   return value && value in TREND_RANGES ? (value as TrendRange) : "30d";
@@ -46,6 +47,7 @@ export default async function DashboardPage({
     mode?: string;
   }>;
 }) {
+  const session = await requireSession();
   const {
     range: rangeParam,
     topRange: topRangeParam,
@@ -84,11 +86,13 @@ export default async function DashboardPage({
             A quick look at who&apos;s climbing and what&apos;s recent.
           </p>
         </div>
-        <Link href="/scores/record">
-          <Button className="flex gap-1">
-            <p>Record a test</p>
-          </Button>
-        </Link>
+        {session.canWrite && (
+          <Link href="/scores/record">
+            <Button className="flex gap-1">
+              <p>Record a test</p>
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

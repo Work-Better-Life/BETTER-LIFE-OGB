@@ -1,3 +1,5 @@
+import { plotPercent } from "@/lib/scoring";
+
 const WIDTH = 120;
 const HEIGHT = 44;
 const PADDING_X = 4;
@@ -27,7 +29,7 @@ export function Sparkline({
   const stepX = (WIDTH - PADDING_X * 2) / (percentages.length - 1);
   const coords = percentages.map((p, i) => {
     const x = PADDING_X + i * stepX;
-    const y = PADDING_TOP + (1 - p / 100) * innerHeight;
+    const y = PADDING_TOP + (1 - plotPercent(p) / 100) * innerHeight;
     return [x, y] as const;
   });
   const path = coords.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");

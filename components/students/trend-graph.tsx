@@ -1,5 +1,6 @@
 "use client";
 
+import { plotPercent } from "@/lib/scoring";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { DeltaIndicator } from "@/components/ui/badge";
@@ -75,7 +76,7 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
 
   const coords = points.map((p, i) => ({
     x: PAD_LEFT + i * stepX,
-    y: PAD_TOP + (1 - p.average / 100) * innerHeight,
+    y: PAD_TOP + (1 - plotPercent(p.average) / 100) * innerHeight,
     point: p,
   }));
 
@@ -171,7 +172,7 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
           </defs>
 
           {GRID_VALUES.map((pct) => {
-            const y = PAD_TOP + (1 - pct / 100) * innerHeight;
+            const y = PAD_TOP + (1 - plotPercent(pct) / 100) * innerHeight;
             return (
               <g key={pct}>
                 <line

@@ -10,8 +10,10 @@ import { updateStudentAction, deleteStudentAction } from "@/lib/actions/students
 
 export function StudentHeaderActions({
   student,
+  cohorts,
 }: {
-  student: { id: string; firstName: string; lastName: string };
+  student: { id: string; firstName: string; lastName: string; cohortId: string | null };
+  cohorts: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -37,7 +39,8 @@ export function StudentHeaderActions({
       <Drawer open={editing} onClose={() => setEditing(false)} title="Edit student">
         <StudentForm
           action={updateStudentAction.bind(null, student.id)}
-          defaultValues={{ firstName: student.firstName, lastName: student.lastName }}
+          defaultValues={{ firstName: student.firstName, lastName: student.lastName, cohortId: student.cohortId }}
+          cohorts={cohorts}
           submitLabel="Save changes"
           onSuccess={() => setEditing(false)}
         />

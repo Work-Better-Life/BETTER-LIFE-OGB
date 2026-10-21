@@ -9,6 +9,8 @@
     "lint": "eslint",
     "create-account": "tsx --env-file=.env scripts/create-account.ts",
     "delete-account": "tsx --env-file=.env scripts/delete-account.ts",
+    "find-invalid-scores": "tsx --env-file=.env scripts/find-invalid-scores.ts",
+    "import-students": "tsx --env-file=.env scripts/import-students.ts",
     "seed-test-data": "tsx --env-file=.env scripts/seed-test-data.ts",
     "delete-all-students": "tsx --env-file=.env scripts/delete-all-students.ts",
     "renumber-students": "tsx --env-file=.env scripts/renumber-students.ts",
@@ -22,11 +24,13 @@
     "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.3",
+    "lucide-react": "^1.57.0",
     "motion": "^12.42.2",
     "next": "16.2.10",
     "prisma": "^7.8.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "^4.4.3"
   },
   "devDependencies": {

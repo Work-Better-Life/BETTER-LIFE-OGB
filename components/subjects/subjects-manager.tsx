@@ -18,7 +18,7 @@ import {
 type Topic = { id: string; name: string; defaultMaxScore: number; _count: { scores: number } };
 type Subject = { id: string; name: string; topics: Topic[] };
 
-export function SubjectsManager({ subjects }: { subjects: Subject[] }) {
+export function SubjectsManager({ subjects, canWrite }: { subjects: Subject[]; canWrite: boolean }) {
   const [addSubjectOpen, setAddSubjectOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
@@ -60,9 +60,11 @@ export function SubjectsManager({ subjects }: { subjects: Subject[] }) {
 
   return (
     <>
-      <div className="flex items-center justify-end">
-        <Button onClick={() => setAddSubjectOpen(true)}>New Subject</Button>
-      </div>
+      {canWrite && (
+        <div className="flex items-center justify-end">
+          <Button onClick={() => setAddSubjectOpen(true)}>New Subject</Button>
+        </div>
+      )}
 
       <div className="mt-4 flex flex-col gap-3">
         {subjects.length === 0 && (
@@ -93,14 +95,16 @@ export function SubjectsManager({ subjects }: { subjects: Subject[] }) {
                     {subject.topics.length} topic{subject.topics.length === 1 ? "" : "s"}
                   </span>
                 </button>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" onClick={() => setEditingSubject(subject)}>
-                    Edit
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setDeletingSubject(subject)}>
-                    Delete
-                  </Button>
-                </div>
+                {canWrite && (
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" onClick={() => setEditingSubject(subject)}>
+                      Edit
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setDeletingSubject(subject)}>
+                      Delete
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {isOpen && (
@@ -115,29 +119,33 @@ export function SubjectsManager({ subjects }: { subjects: Subject[] }) {
                             {topic.name}{" "}
                             <span className="text-foreground-muted">· out of {topic.defaultMaxScore}</span>
                           </span>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setEditingTopic({ subject, topic })}
-                            >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDeletingTopic({ subject, topic })}
-                            >
-                              Delete
-                            </Button>
-                          </div>
+                          {canWrite && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEditingTopic({ subject, topic })}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setDeletingTopic({ subject, topic })}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          )}
                         </li>
                       ))}
                     </ul>
                   )}
-                  <Button variant="secondary" size="sm" className="mt-3" onClick={() => setAddTopicFor(subject)}>
-                    + Add topic
-                  </Button>
+                  {canWrite && (
+                    <Button variant="secondary" size="sm" className="mt-3" onClick={() => setAddTopicFor(subject)}>
+                      + Add topic
+                    </Button>
+                  )}
                 </div>
               )}
             </div>

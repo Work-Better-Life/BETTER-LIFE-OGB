@@ -1,5 +1,6 @@
 "use client";
 
+import { plotPercent } from "@/lib/scoring";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 
@@ -70,7 +71,7 @@ function buildLineChart(points: Point[], priorPercentage: number | null) {
     const v = isReal ? (p.averagePercentage as number) : lastKnown;
     if (v === null)
       return { x, y: null, value: null, point: p, isReal: false };
-    const y = PAD_TOP + (1 - v / 100) * innerHeight;
+    const y = PAD_TOP + (1 - plotPercent(v) / 100) * innerHeight;
     return { x, y, value: v, point: p, isReal };
   });
 
@@ -242,7 +243,7 @@ export function TrendChart({
 
               {/* Horizontal Grid Lines */}
               {GRID_VALUES.map((pct) => {
-                const y = PAD_TOP + (1 - pct / 100) * innerHeight;
+                const y = PAD_TOP + (1 - plotPercent(pct) / 100) * innerHeight;
                 return (
                   <g key={pct}>
                     <line
@@ -436,7 +437,7 @@ export function TrendChart({
 
               {/* Horizontal Grid Lines */}
               {GRID_VALUES.map((pct) => {
-                const y = PAD_TOP + (1 - pct / 100) * innerHeight;
+                const y = PAD_TOP + (1 - plotPercent(pct) / 100) * innerHeight;
                 return (
                   <g key={`h-grid-${pct}`}>
                     <line
@@ -472,7 +473,7 @@ export function TrendChart({
                 const y_bottom = HEIGHT - PAD_BOTTOM;
 
                 const value = point.averagePercentage;
-                const targetY = PAD_TOP + (1 - value / 100) * innerHeight;
+                const targetY = PAD_TOP + (1 - plotPercent(value) / 100) * innerHeight;
 
                 const y_val = revealed ? targetY : y_bottom;
 
@@ -606,7 +607,7 @@ export function TrendChart({
                 className="pointer-events-none absolute z-50 rounded-lg border border-border bg-surface px-3 py-2 text-xs shadow-floating"
                 style={{
                   bottom: `${
-                    ((100 - hoveredBarPoint.averagePercentage) / 100) *
+                    ((100 - plotPercent(hoveredBarPoint.averagePercentage)) / 100) *
                       innerHeight +
                     PAD_BOTTOM +
                     20

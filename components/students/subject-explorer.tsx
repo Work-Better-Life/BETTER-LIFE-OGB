@@ -11,7 +11,15 @@ type Topic = { id: string; name: string; entries: Entry[] };
 
 type PerfFilter = "all" | "best" | "poor";
 
-export function SubjectExplorer({ studentId, topics }: { studentId: string; topics: Topic[] }) {
+export function SubjectExplorer({
+  studentId,
+  topics,
+  canWrite,
+}: {
+  studentId: string;
+  topics: Topic[];
+  canWrite: boolean;
+}) {
   const [query, setQuery] = useState("");
   const [perf, setPerf] = useState<PerfFilter>("all");
   const [expanded, setExpanded] = useState(false);
@@ -82,7 +90,14 @@ export function SubjectExplorer({ studentId, topics }: { studentId: string; topi
           <>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {visible.map((t) => (
-                <TopicCard key={t.id} studentId={studentId} topicName={t.name} entries={t.entries} delta={t.delta} />
+                <TopicCard
+                  key={t.id}
+                  studentId={studentId}
+                  topicName={t.name}
+                  entries={t.entries}
+                  delta={t.delta}
+                  canWrite={canWrite}
+                />
               ))}
             </div>
             {filtered.length > 4 && (

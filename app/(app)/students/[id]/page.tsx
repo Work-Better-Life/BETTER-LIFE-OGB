@@ -1,12 +1,16 @@
 import { notFound } from "next/navigation";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import Link from "next/link";
-import { getStudentDetail } from "@/lib/data/students";
+import { getStudentDetail, getStudentNeighbors } from "@/lib/data/students";
+import { requireSession } from "@/lib/auth";
+import { listCohorts } from "@/lib/data/cohorts";
 import { listSubjectsForPicker } from "@/lib/data/subjects";
 import { consistencyScore } from "@/lib/scoring";
 import { ConsistencyBadge } from "@/components/ui/badge";
 import { Badge } from "@/components/ui/badge";
 import { AddScoreDrawer } from "@/components/students/add-score-drawer";
 import { StudentHeaderActions } from "@/components/students/student-header-actions";
+import { StudentPager } from "@/components/students/student-pager";
 import { StudentOverview } from "@/components/students/student-overview";
 import { buildTrendPoints } from "@/lib/trend-points";
 import { STUDENT_OVERVIEW_RANGES, rangeStartISO, type StudentOverviewRange } from "@/lib/trend-ranges";
@@ -22,14 +26,17 @@ export default async function StudentDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ range?: string }>;
 }) {
+  const session = await requireSession();
   const { id } = await params;
   const { range: rangeParam } = await searchParams;
   const range = parseRange(rangeParam);
   const startISO = rangeStartISO(range);
 
-  const [student, subjects] = await Promise.all([
+  const [student, subjects, neighbors, cohorts] = await Promise.all([
     getStudentDetail(id, startISO),
     listSubjectsForPicker(),
+    getStudentNeighbors(id),
+    listCohorts(),
   ]);
 
   if (!student) notFound();
@@ -48,10 +55,14 @@ export default async function StudentDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <Link href="/students" className="text-sm text-foreground-muted hover:underline">
-          ← Students
-        </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Breadcrumbs
+          items={[
+            { label: "Students", href: "/students" },
+            { label: `${student.firstName} ${student.lastName}` },
+          ]}
+        />
+        <StudentPager previous={neighbors.previous} next={neighbors.next} />
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -68,8 +79,18 @@ export default async function StudentDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <AddScoreDrawer studentId={student.id} subjects={subjects} />
-          <StudentHeaderActions student={student} />
+          <Link
+            href={`/students/${student.id}/profile`}
+            className="inline-flex h-10 items-center rounded-md border border-border bg-surface-muted px-4 text-sm font-medium text-foreground hover:bg-border/60"
+          >
+            View profile
+          </Link>
+          {session.canWrite && (
+            <>
+              <AddScoreDrawer studentId={student.id} subjects={subjects} />
+              <StudentHeaderActions student={student} cohorts={cohorts} />
+            </>
+          )}
         </div>
       </div>
 
