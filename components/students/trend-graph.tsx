@@ -1,6 +1,7 @@
 "use client";
 
 import { plotPercent } from "@/lib/scoring";
+import { labelStepFor, shouldShowLabel } from "@/lib/chart-labels";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { DeltaIndicator } from "@/components/ui/badge";
@@ -113,7 +114,7 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
     setPinnedIndex((prev) => (prev === i ? null : i));
   }
 
-  const labelStep = Math.max(1, Math.ceil(points.length / 8));
+  const labelStep = labelStepFor(points.length, 8);
 
   // Measured in px (not viewBox %) so the card can be a sibling of the
   // scrollable chart — living outside it means it's never clipped by the
@@ -238,7 +239,7 @@ export function TrendGraph({ studentId, points }: { studentId: string; points: T
           ))}
 
           {coords.map((c, i) => {
-            if (!(i === 0 || i === coords.length - 1 || i % labelStep === 0)) return null;
+            if (!shouldShowLabel(i, coords.length, labelStep)) return null;
             return (
               <text
                 key={`label-${i}`}
