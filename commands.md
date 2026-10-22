@@ -35,9 +35,11 @@ The app stores data in a [Turso](https://turso.tech) database (libsql), not a lo
 
 | Command | What it does |
 |---|---|
-| `npm run push-schema-to-turso` | Applies every migration under `prisma/migrations/` directly to the Turso database. Run this after adding a new migration folder — `prisma migrate` / `prisma db push` can't be used directly against Turso (its schema engine doesn't understand `libsql://` URLs), so this is the way schema changes reach the real database. |
+| `npm run push-schema-to-turso` | Applies every pending migration under `prisma/migrations/` directly to the Turso database. Run this after adding a new migration folder — `prisma migrate` / `prisma db push` can't be used directly against Turso (its schema engine doesn't understand `libsql://` URLs), so this is the way schema changes reach the real database. It first looks at the database read-only, prints which database it will change and which migrations are pending, then makes you type the database name before changing anything. Options go after `--`: `--dry-run` only looks and changes nothing; `--yes` skips the typed confirmation (for scripts). It refuses to run if an untracked database has tables the first migration doesn't create. |
 
 To change the schema: edit `prisma/schema.prisma`, run `npx prisma migrate dev --create-only` to generate the migration SQL (it will fail to apply locally against Turso — that's expected, it just needs to write the file), then run `npm run push-schema-to-turso` to actually apply it.
+
+**Production:** keep the production `DATABASE_URL` and `DATABASE_AUTH_TOKEN` in a separate, git-ignored file such as `.env.prod`, take a backup first (a Turso branch of the database), and run the script against it with `npx tsx --env-file=.env.prod scripts/push-schema-to-turso.ts --dry-run` to see what it would do. Run it again without `--dry-run` to apply, and once more with `--dry-run` to confirm `Pending: none`. Apply migrations **before** deploying the code that needs them.
 
 ## Notes
 
