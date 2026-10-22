@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CohortSelect } from "@/components/cohorts/cohort-select";
+import { fileInputClasses } from "@/components/ui/input";
 import { importStudentsAction, type StudentImportResult } from "@/lib/actions/profile-import";
 import { SPREADSHEET_ACCEPT } from "@/lib/spreadsheet-formats";
 
@@ -65,7 +66,7 @@ export function ImportForm({ cohorts }: { cohorts: { id: string; name: string }[
               type="file"
               accept={SPREADSHEET_ACCEPT}
               required
-              className="text-sm"
+              className={fileInputClasses}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
             <p className="text-xs text-foreground-muted">

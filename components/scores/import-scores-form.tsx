@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Input, fileInputClasses } from "@/components/ui/input";
 import { importScoresAction, type ScoreImportResult } from "@/lib/actions/score-import";
 import { SPREADSHEET_ACCEPT } from "@/lib/spreadsheet-formats";
 
@@ -81,13 +81,21 @@ export function ImportScoresForm({ cohorts }: { cohorts: CohortOption[] }) {
               type="file"
               accept={SPREADSHEET_ACCEPT}
               required
-              className="text-sm"
+              className={fileInputClasses}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
             <p className="text-xs text-foreground-muted">
               Excel (.xlsx, .xls), OpenDocument (.ods) or CSV. One row per student with a <strong>Name</strong>{" "}
               column, then one column per subject with its max score in brackets, like <em>Mathematics (10)</em>.
-              Write ABSENT for anyone who missed it — they&apos;re saved as 0.
+              Write ABSENT for anyone who missed it — they&apos;re saved as 0. Example file:{" "}
+              <a href="/import-samples/scores-sample.csv" download className="text-primary-strong hover:underline">
+                CSV
+              </a>
+              {" · "}
+              <a href="/import-samples/scores-sample.xlsx" download className="text-primary-strong hover:underline">
+                Excel
+              </a>
+              .
             </p>
           </div>
 

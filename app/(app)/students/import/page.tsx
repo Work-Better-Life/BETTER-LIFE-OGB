@@ -28,6 +28,17 @@ export default async function ImportStudentsPage() {
             Excel
           </a>
         </p>
+        <p className="mt-1 text-sm text-foreground-muted">
+          Not sure what goes in each column? See an example with four filled-in students:{" "}
+          <a href="/import-samples/students-sample.csv" download className="text-primary-strong hover:underline">
+            CSV
+          </a>
+          {" · "}
+          <a href="/import-samples/students-sample.xlsx" download className="text-primary-strong hover:underline">
+            Excel
+          </a>
+          . It&apos;s for reference. Import it only to practise, and use Undo afterwards.
+        </p>
       </div>
       <ImportForm cohorts={cohorts} />
       <RecentStudentImports imports={imports} />
