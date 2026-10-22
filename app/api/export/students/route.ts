@@ -18,9 +18,10 @@ export async function GET(request: NextRequest) {
 
   const search = request.nextUrl.searchParams.get("search") ?? undefined;
   const window = normalizeExportWindow(request.nextUrl.searchParams.get("window"));
-  const students = await getStudentsForExport(search, window);
+  const cohort = request.nextUrl.searchParams.get("cohort") ?? undefined;
+  const students = await getStudentsForExport(search, window, cohort);
 
-  const header = ["Serial Number", "First Name", "Last Name", "Subjects", "Average %", "Last Recorded"];
+  const header = ["Serial Number", "First Name", "Last Name", "Subjects", "Average %", "Last Recorded", "Cohort"];
   const rows = students.map((student) => [
     student.serialNumber,
     student.firstName,
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
     student.subjectNames.join("; "),
     student.averagePercentage !== null ? student.averagePercentage.toFixed(1) : "",
     student.lastRecordedAt ? new Date(student.lastRecordedAt).toISOString().slice(0, 10) : "",
+    student.cohortName ?? "",
   ]);
 
   const csv = [header, ...rows].map((row) => row.map((cell) => csvEscape(String(cell))).join(",")).join("\n");

@@ -1,6 +1,8 @@
 import readline from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { prisma } from "../lib/db";
+import { collectPhotoKeys } from "../lib/data/photos";
+import { deleteUploadedFiles } from "../lib/storage";
 
 async function main() {
   const [studentCount, scoreCount] = await Promise.all([
@@ -27,8 +29,12 @@ async function main() {
     return;
   }
 
+  // Photos live in UploadThing; deleting students only removes the records that
+  // point at them, so collect the files first and delete them afterwards.
+  const photoKeys = await collectPhotoKeys({});
   const { count } = await prisma.student.deleteMany();
-  console.log(`\n✓ Deleted ${count} students and all of their score entries.`);
+  await deleteUploadedFiles(photoKeys);
+  console.log(`\n✓ Deleted ${count} students, all of their score entries, and ${photoKeys.length} photo files.`);
 }
 
 main()

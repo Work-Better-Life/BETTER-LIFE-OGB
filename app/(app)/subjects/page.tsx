@@ -1,7 +1,9 @@
 import { listSubjectsWithTopics } from "@/lib/data/subjects";
+import { requireSession } from "@/lib/auth";
 import { SubjectsManager } from "@/components/subjects/subjects-manager";
 
 export default async function SubjectsPage() {
+  const session = await requireSession();
   const subjects = await listSubjectsWithTopics();
 
   return (
@@ -12,7 +14,7 @@ export default async function SubjectsPage() {
           The catalog of subjects and topics students can be scored on.
         </p>
       </div>
-      <SubjectsManager subjects={subjects} />
+      <SubjectsManager subjects={subjects} canWrite={session.canWrite} />
     </div>
   );
 }

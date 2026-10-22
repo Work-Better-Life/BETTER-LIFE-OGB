@@ -63,6 +63,7 @@ async function main() {
   const rl = readline.createInterface({ input: stdin, output: stdout });
   const email = (await rl.question("Email: ")).trim();
   const name = (await rl.question('Name (optional, defaults to "Admin"): ')).trim() || "Admin";
+  const roleAnswer = (await rl.question("Role — admin (can edit) or viewer (read-only) [admin]: ")).trim().toLowerCase();
   rl.close();
 
   const password = await askHidden("Password (min 8 characters): ");
@@ -70,6 +71,12 @@ async function main() {
 
   if (!EMAIL_PATTERN.test(email)) {
     console.log("\n✗ Account not created — that doesn't look like a valid email address.");
+    process.exitCode = 1;
+    return;
+  }
+
+  if (roleAnswer !== "" && roleAnswer !== "admin" && roleAnswer !== "viewer") {
+    console.log('\n✗ Account not created — role must be "admin" or "viewer".');
     process.exitCode = 1;
     return;
   }
@@ -87,13 +94,15 @@ async function main() {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
+  // Leaving the role blank keeps an existing account's role, so re-running this
+  // to reset a password can never silently demote or promote anyone.
   const user = await prisma.user.upsert({
     where: { email: email.toLowerCase() },
-    update: { passwordHash, name },
-    create: { email: email.toLowerCase(), passwordHash, name },
+    update: { passwordHash, name, ...(roleAnswer ? { role: roleAnswer } : {}) },
+    create: { email: email.toLowerCase(), passwordHash, name, role: roleAnswer || "admin" },
   });
 
-  console.log(`\n✓ Account ready — ${user.email} (${user.name})`);
+  console.log(`\n✓ Account ready — ${user.email} (${user.name}, ${user.role ?? "admin"})`);
 }
 
 main()

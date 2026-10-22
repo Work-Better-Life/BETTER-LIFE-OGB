@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
-  serverExternalPackages: ["@libsql/client", "libsql", "@prisma/adapter-libsql", "@prisma/client"],
+  serverExternalPackages: ["@libsql/client", "libsql", "@prisma/adapter-libsql", "@prisma/client", "xlsx"],
   // Allows loading the dev server from a phone on the same network (e.g. http://192.168.x.x:3000).
   // Without this, Next blocks the HMR/webpack dev client on cross-origin requests, which stops
   // the client bundle from ever bootstrapping — the page ships but React never hydrates.

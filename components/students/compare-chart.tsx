@@ -1,5 +1,6 @@
 "use client";
 
+import { plotPercent } from "@/lib/scoring";
 import { useState } from "react";
 import { toPercentage } from "@/lib/scoring";
 import { cn } from "@/lib/cn";
@@ -26,13 +27,13 @@ function buildLine(entries: CompareSeries["entries"]) {
   const percentages = entries.map(toPercentage);
   const innerHeight = HEIGHT - PAD_TOP - PAD_BOTTOM;
   if (percentages.length === 1) {
-    const y = PAD_TOP + (1 - percentages[0] / 100) * innerHeight;
+    const y = PAD_TOP + (1 - plotPercent(percentages[0]) / 100) * innerHeight;
     return { path: "", dots: [{ x: WIDTH / 2, y, percentage: percentages[0], entry: entries[0] }] };
   }
   const stepX = (WIDTH - PAD_X * 2) / (percentages.length - 1);
   const dots = percentages.map((p, i) => ({
     x: PAD_X + i * stepX,
-    y: PAD_TOP + (1 - p / 100) * innerHeight,
+    y: PAD_TOP + (1 - plotPercent(p) / 100) * innerHeight,
     percentage: p,
     entry: entries[i],
   }));
@@ -61,7 +62,7 @@ export function CompareChart({ topics }: { topics: [CompareSeries, CompareSeries
       <div className="relative w-full">
         <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full overflow-visible" preserveAspectRatio="xMidYMid meet">
           {GRID_VALUES.map((pct) => {
-            const y = PAD_TOP + (1 - pct / 100) * innerHeight;
+            const y = PAD_TOP + (1 - plotPercent(pct) / 100) * innerHeight;
             return (
               <g key={pct}>
                 <line x1={PAD_X} x2={WIDTH - PAD_X} y1={y} y2={y} stroke="var(--color-border)" strokeWidth={1} opacity={0.6} />

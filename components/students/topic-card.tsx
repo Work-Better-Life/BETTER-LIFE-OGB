@@ -66,7 +66,9 @@ export function TopicCard({
   topicName,
   entries,
   delta,
+  canWrite,
 }: {
+  canWrite: boolean;
   studentId: string;
   topicName: string;
   entries: Entry[];
@@ -118,22 +120,24 @@ export function TopicCard({
               {new Date(entry.recordedAt).toLocaleDateString("en-US")} · {entry.value}/{entry.maxScore}
               {entry.note ? ` · ${entry.note}` : ""}
             </span>
-            <span className="flex gap-1">
-              <button
-                type="button"
-                onClick={() => setEditing(entry)}
-                className="rounded px-1.5 py-0.5 transition-colors hover:bg-surface-muted hover:text-foreground"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeleting(entry)}
-                className="rounded px-1.5 py-0.5 transition-colors hover:bg-surface-muted hover:text-danger"
-              >
-                Delete
-              </button>
-            </span>
+            {canWrite && (
+              <span className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setEditing(entry)}
+                  className="rounded px-1.5 py-0.5 transition-colors hover:bg-surface-muted hover:text-foreground"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleting(entry)}
+                  className="rounded px-1.5 py-0.5 transition-colors hover:bg-surface-muted hover:text-danger"
+                >
+                  Delete
+                </button>
+              </span>
+            )}
           </li>
         ))}
       </ul>

@@ -1,17 +1,25 @@
 import Link from "next/link";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { listSubjectsForPicker } from "@/lib/data/subjects";
 import { listStudentsForPicker } from "@/lib/data/students";
+import { listCohorts } from "@/lib/data/cohorts";
+import { listScoreImports } from "@/lib/data/score-import";
+import { requireWriterPage } from "@/lib/auth";
 import { RecordTabs } from "@/components/scores/record-tabs";
 
 export default async function RecordTestPage() {
-  const [subjects, students] = await Promise.all([listSubjectsForPicker(), listStudentsForPicker()]);
+  await requireWriterPage();
+  const [subjects, students, cohorts, imports] = await Promise.all([
+    listSubjectsForPicker(),
+    listStudentsForPicker(),
+    listCohorts(),
+    listScoreImports(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link href="/dashboard" className="text-sm text-foreground-muted hover:underline">
-          ← Dashboard
-        </Link>
+        <Breadcrumbs items={[{ label: "Dashboard", href: "/dashboard" }, { label: "Record a test" }]} />
         <h1 className="font-display mt-2 text-2xl text-foreground">Record a test</h1>
       </div>
 
@@ -24,7 +32,7 @@ export default async function RecordTestPage() {
           before recording a test.
         </div>
       ) : (
-        <RecordTabs subjects={subjects} students={students} />
+        <RecordTabs subjects={subjects} students={students} cohorts={cohorts} imports={imports} />
       )}
     </div>
   );

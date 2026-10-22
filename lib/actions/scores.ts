@@ -1,19 +1,18 @@
 "use server";
 
 import { z } from "zod";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/auth";
+import { guardWrite, requireWriter } from "@/lib/auth";
 import * as scoresData from "@/lib/data/scores";
 import * as subjectsData from "@/lib/data/subjects";
 
-async function requireSession() {
-  const session = await getSession();
-  if (!session) redirect("/login");
-  return session;
-}
-
 export type ActionState = { error?: string };
+
+// A score above its own max would read as >100% and wreck every average and
+// chart that uses it, so every entry path rejects it.
+function overMaxMessage(value: number, maxScore: number) {
+  return `A score of ${value} is higher than the max score of ${maxScore}.`;
+}
 
 const addScoreSchema = z.object({
   studentId: z.string().min(1),
@@ -24,6 +23,10 @@ const addScoreSchema = z.object({
   maxScore: z.coerce.number().int().min(1, "Max score must be at least 1."),
   note: z.string().trim().optional(),
   recordedAt: z.string().min(1, "Pick a date."),
+}).superRefine((data, ctx) => {
+  if (data.value > data.maxScore) {
+    ctx.addIssue({ code: "custom", path: ["value"], message: overMaxMessage(data.value, data.maxScore) });
+  }
 });
 
 export async function addScoreAction(
@@ -31,7 +34,8 @@ export async function addScoreAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  await requireSession();
+  const denied = await guardWrite();
+  if (denied) return { error: denied };
 
   const parsed = addScoreSchema.safeParse({
     studentId,
@@ -83,6 +87,10 @@ const editScoreSchema = z.object({
   maxScore: z.coerce.number().int().min(1, "Max score must be at least 1."),
   note: z.string().trim().optional(),
   recordedAt: z.string().min(1, "Pick a date."),
+}).superRefine((data, ctx) => {
+  if (data.value > data.maxScore) {
+    ctx.addIssue({ code: "custom", path: ["value"], message: overMaxMessage(data.value, data.maxScore) });
+  }
 });
 
 export async function updateScoreAction(
@@ -91,7 +99,8 @@ export async function updateScoreAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  await requireSession();
+  const denied = await guardWrite();
+  if (denied) return { error: denied };
   const parsed = editScoreSchema.safeParse({
     value: formData.get("value"),
     maxScore: formData.get("maxScore"),
@@ -128,13 +137,24 @@ const bulkScoreSchema = z.object({
       })
     )
     .min(1, "Select at least one student."),
+}).superRefine((data, ctx) => {
+  data.entries.forEach((entry, index) => {
+    if (entry.value > data.maxScore) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["entries", index, "value"],
+        message: overMaxMessage(entry.value, data.maxScore),
+      });
+    }
+  });
 });
 
 export type BulkScoreInput = z.infer<typeof bulkScoreSchema>;
 export type BulkScoreState = { error?: string; successCount?: number };
 
 export async function addBulkScoreAction(input: BulkScoreInput): Promise<BulkScoreState> {
-  await requireSession();
+  const denied = await guardWrite();
+  if (denied) return { error: denied };
 
   const parsed = bulkScoreSchema.safeParse(input);
   if (!parsed.success) {
@@ -188,6 +208,16 @@ const gridColumnSchema = z.object({
       })
     )
     .min(1),
+}).superRefine((data, ctx) => {
+  data.entries.forEach((entry, index) => {
+    if (entry.value > data.maxScore) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["entries", index, "value"],
+        message: overMaxMessage(entry.value, data.maxScore),
+      });
+    }
+  });
 });
 
 const gridScoreSchema = z.object({
@@ -200,7 +230,8 @@ export type GridScoreInput = z.infer<typeof gridScoreSchema>;
 export type GridScoreState = { error?: string; successCount?: number };
 
 export async function addGridScoreAction(input: GridScoreInput): Promise<GridScoreState> {
-  await requireSession();
+  const denied = await guardWrite();
+  if (denied) return { error: denied };
 
   const parsed = gridScoreSchema.safeParse(input);
   if (!parsed.success) {
@@ -255,7 +286,7 @@ export async function addGridScoreAction(input: GridScoreInput): Promise<GridSco
 }
 
 export async function deleteScoreAction(id: string, studentId: string) {
-  await requireSession();
+  await requireWriter();
   await scoresData.deleteScoreEntry(id);
   revalidatePath(`/students/${studentId}`);
   revalidatePath("/dashboard");

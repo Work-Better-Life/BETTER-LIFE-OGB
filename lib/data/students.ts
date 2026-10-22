@@ -1,11 +1,19 @@
 import { prisma } from "@/lib/db";
+import { collectPhotoKeys } from "@/lib/data/photos";
+import { deleteUploadedFiles } from "@/lib/storage";
 import { averagePercentage } from "@/lib/scoring";
 import { EXPORT_WINDOW_DAYS, type ExportWindow } from "@/lib/export-window";
 
-function serialSequence(serialNumber: string) {
+export function serialSequence(serialNumber: string) {
   const match = serialNumber.match(/(\d+)$/);
   const seq = match ? parseInt(match[1], 10) : NaN;
   return Number.isFinite(seq) ? seq : 0;
+}
+
+// "Amara Okafor", 7 -> "AO007". The numeric part is one global sequence.
+export function formatSerialNumber(firstName: string, lastName: string, sequence: number) {
+  const initials = `${firstName.trim()[0] ?? ""}${lastName.trim()[0] ?? ""}`.toUpperCase();
+  return `${initials}${String(sequence).padStart(3, "0")}`;
 }
 
 async function generateSerialNumber(firstName: string, lastName: string) {
@@ -22,7 +30,7 @@ async function generateSerialNumber(firstName: string, lastName: string) {
 
 export async function listStudentsForPicker() {
   const students = await prisma.student.findMany({
-    select: { id: true, firstName: true, lastName: true, serialNumber: true },
+    select: { id: true, firstName: true, lastName: true, serialNumber: true, cohortId: true },
   });
   return students.sort((a, b) => serialSequence(a.serialNumber) - serialSequence(b.serialNumber));
 }
@@ -36,6 +44,7 @@ function normalizeSort(sort?: string): StudentSort {
 }
 
 const scoresInclude = {
+  cohort: true,
   scores: {
     include: { topic: { include: { subject: true } } },
     orderBy: { recordedAt: "asc" as const },
@@ -55,6 +64,8 @@ function mapStudentRow(student: RawStudentWithScores) {
     firstName: student.firstName,
     lastName: student.lastName,
     createdAt: student.createdAt,
+    cohortId: student.cohortId,
+    cohortName: student.cohort?.name ?? null,
     subjectNames: Array.from(subjectNames),
     averagePercentage: averagePercentage(student.scores),
     lastRecordedAt: lastEntry?.recordedAt ?? null,
@@ -85,17 +96,34 @@ function sortStudentRows(rows: StudentRow[], sort: StudentSort): StudentRow[] {
   return [...rows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 }
 
-export async function listStudents(search?: string, page?: number, pageSize?: number, sort?: string) {
+export const NO_COHORT = "none";
+
+// `cohort` is a cohort id, NO_COHORT for students without one, or empty for everyone.
+function buildStudentWhere(search?: string, cohort?: string) {
+  const filters = [];
+  if (search) {
+    filters.push({
+      OR: [
+        { firstName: { contains: search } },
+        { lastName: { contains: search } },
+        { serialNumber: { contains: search } },
+      ],
+    });
+  }
+  if (cohort === NO_COHORT) filters.push({ cohortId: null });
+  else if (cohort) filters.push({ cohortId: cohort });
+  return filters.length > 0 ? { AND: filters } : undefined;
+}
+
+export async function listStudents(
+  search?: string,
+  page?: number,
+  pageSize?: number,
+  sort?: string,
+  cohort?: string
+) {
   const normalizedSort = normalizeSort(sort);
-  const where = search
-    ? {
-        OR: [
-          { firstName: { contains: search } },
-          { lastName: { contains: search } },
-          { serialNumber: { contains: search } },
-        ],
-      }
-    : undefined;
+  const where = buildStudentWhere(search, cohort);
 
   // "scored" can't be paginated at the database level — it sorts on a value
   // computed after fetching (lastRecordedAt). An omitted pageSize means
@@ -138,16 +166,8 @@ export async function listStudents(search?: string, page?: number, pageSize?: nu
   return { students: students.map(mapStudentRow), total };
 }
 
-export async function getStudentsForExport(search?: string, window: ExportWindow = "all") {
-  const where = search
-    ? {
-        OR: [
-          { firstName: { contains: search } },
-          { lastName: { contains: search } },
-          { serialNumber: { contains: search } },
-        ],
-      }
-    : undefined;
+export async function getStudentsForExport(search?: string, window: ExportWindow = "all", cohort?: string) {
+  const where = buildStudentWhere(search, cohort);
 
   const windowDays = EXPORT_WINDOW_DAYS[window];
   const scoresWhere = windowDays
@@ -157,6 +177,7 @@ export async function getStudentsForExport(search?: string, window: ExportWindow
   const students = await prisma.student.findMany({
     where,
     include: {
+      cohort: true,
       scores: {
         where: scoresWhere,
         include: { topic: { include: { subject: true } } },
@@ -175,6 +196,7 @@ export async function getStudentDetail(id: string, startDate?: string, endDate?:
   const student = await prisma.student.findUnique({
     where: { id },
     include: {
+      cohort: true,
       scores: {
         include: { topic: { include: { subject: true } } },
         orderBy: { recordedAt: "asc" },
@@ -219,6 +241,8 @@ export async function getStudentDetail(id: string, startDate?: string, endDate?:
     firstName: student.firstName,
     lastName: student.lastName,
     createdAt: student.createdAt,
+    cohortId: student.cohortId,
+    cohortName: student.cohort?.name ?? null,
     averagePercentage: averagePercentage(filteredScores),
     scoreCount: filteredScores.length,
     rawScores: filteredScores,
@@ -234,20 +258,49 @@ export async function getStudentDetail(id: string, startDate?: string, endDate?:
   };
 }
 
-export async function createStudent(firstName: string, lastName: string) {
+export async function createStudent(firstName: string, lastName: string, cohortId: string | null = null) {
   const serialNumber = await generateSerialNumber(firstName, lastName);
   return prisma.student.create({
-    data: { firstName: firstName.trim(), lastName: lastName.trim(), serialNumber },
+    data: { firstName: firstName.trim(), lastName: lastName.trim(), serialNumber, cohortId },
   });
 }
 
-export async function updateStudent(id: string, firstName: string, lastName: string) {
+// `cohortId` undefined leaves the student's cohort as it is; null clears it.
+export async function updateStudent(id: string, firstName: string, lastName: string, cohortId?: string | null) {
   return prisma.student.update({
     where: { id },
-    data: { firstName: firstName.trim(), lastName: lastName.trim() },
+    data: { firstName: firstName.trim(), lastName: lastName.trim(), ...(cohortId !== undefined ? { cohortId } : {}) },
   });
 }
 
+// Deleting a student cascades to their photo record, which would orphan the
+// file in UploadThing, so the file keys are collected first and the files are
+// deleted once the student is really gone. If the student can't be deleted,
+// their photo is left alone.
 export async function deleteStudent(id: string) {
-  return prisma.student.delete({ where: { id } });
+  const photoKeys = await collectPhotoKeys({ id });
+  const deleted = await prisma.student.delete({ where: { id } });
+  await deleteUploadedFiles(photoKeys);
+  return deleted;
+}
+
+// The students either side of `id` in the list's default "oldest added" order,
+// for the previous / next arrows. Either is null at the ends of the list.
+export async function getStudentNeighbors(id: string) {
+  const students = await prisma.student.findMany({
+    select: { id: true, firstName: true, lastName: true, serialNumber: true, createdAt: true },
+  });
+  students.sort(
+    (a, b) =>
+      a.createdAt.getTime() - b.createdAt.getTime() || serialSequence(a.serialNumber) - serialSequence(b.serialNumber)
+  );
+
+  const index = students.findIndex((student) => student.id === id);
+  const pick = (student: (typeof students)[number] | undefined) =>
+    student ? { id: student.id, name: `${student.firstName} ${student.lastName}` } : null;
+
+  return {
+    previous: index > 0 ? pick(students[index - 1]) : null,
+    next: index >= 0 ? pick(students[index + 1]) : null,
+  };
 }
