@@ -107,12 +107,17 @@ model Cohort {
 }
 
 // Profile picture, kept in its own table so it never rides along on student
-// list queries. `data` is a small, client-resized JPEG data URL.
+// list queries. The image itself lives in UploadThing: `url` is where it is
+// served from and `key` is what's needed to delete it later. `data` is the
+// older inline form (a small JPEG data URL) and is only read for photos saved
+// before UploadThing was added.
 model StudentPhoto {
   id        String   @id @default(cuid())
   studentId String   @unique
   student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  data      String
+  data      String?
+  url       String?
+  key       String?
   updatedAt DateTime @updatedAt
 }
 

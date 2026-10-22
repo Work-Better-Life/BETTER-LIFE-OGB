@@ -53,9 +53,7 @@ export async function readSessionToken(token: string | undefined) {
   }
 }
 
-export async function getSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
+async function sessionFromToken(token: string | undefined) {
   const parsed = await readSessionToken(token);
   if (!parsed) return null;
 
@@ -64,6 +62,24 @@ export async function getSession() {
 
   const role = normalizeRole(user.role);
   return { id: user.id, email: user.email, name: user.name, role, canWrite: role === "admin" };
+}
+
+export async function getSession() {
+  const cookieStore = await cookies();
+  return sessionFromToken(cookieStore.get(SESSION_COOKIE)?.value);
+}
+
+// Same check, reading the cookie straight off an incoming request. Used where a
+// third-party handler (UploadThing's route) runs our code and Next's cookies()
+// helper can't be relied on.
+export async function getSessionFromRequest(request: Request) {
+  const header = request.headers.get("cookie") ?? "";
+  const pair = header
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${SESSION_COOKIE}=`));
+  const token = pair ? decodeURIComponent(pair.slice(SESSION_COOKIE.length + 1)) : undefined;
+  return sessionFromToken(token);
 }
 
 export type Role = "admin" | "viewer";

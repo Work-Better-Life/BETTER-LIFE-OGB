@@ -4,6 +4,12 @@
 
 const PHOTO_SIZE = 320;
 
+// The largest photo a person may pick, and the largest file actually sent to
+// storage (the picked photo is shrunk first, so the second is far smaller in
+// practice). Keep the second in step with the cap in lib/uploadthing.ts.
+export const MAX_PHOTO_SOURCE_BYTES = 1024 * 1024;
+export const MAX_PHOTO_UPLOAD_BYTES = 1024 * 1024;
+
 function squareJpeg(source: CanvasImageSource, width: number, height: number): string {
   const side = Math.min(width, height);
   const canvas = document.createElement("canvas");
@@ -22,6 +28,12 @@ export async function fileToPhotoDataUrl(file: File): Promise<string> {
   } finally {
     bitmap.close();
   }
+}
+
+// Turns a data URL (what the crop/resize produces) into a File to hand to the uploader.
+export async function dataUrlToFile(dataUrl: string, filename = "photo.jpg"): Promise<File> {
+  const blob = await (await fetch(dataUrl)).blob();
+  return new File([blob], filename, { type: "image/jpeg" });
 }
 
 export function videoFrameToPhotoDataUrl(video: HTMLVideoElement): string {

@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { parseStudentImport, type DateOrder } from "@/lib/profile-import";
 import { formatSerialNumber, serialSequence } from "@/lib/data/students";
 import { toRow } from "@/lib/data/profiles";
+import { collectPhotoKeys } from "@/lib/data/photos";
+import { deleteUploadedFiles } from "@/lib/storage";
 import type { ProfileInput } from "@/lib/student-profile";
 
 export type CohortSelection =
@@ -209,13 +211,14 @@ export async function listStudentImports(limit = 10) {
 // refuses if any of them already has scores, because deleting a student also
 // deletes their scores and that can't be recovered.
 export async function undoStudentImport(id: string) {
-  return prisma.$transaction(
+  const outcome = await prisma.$transaction(
     async (tx) => {
       const batch = await tx.studentImport.findUnique({ where: { id } });
       if (!batch) throw new Error("This import was already undone.");
 
       const students = await tx.student.findMany({ where: { importBatchId: id }, select: { id: true } });
       const ids = students.map((s) => s.id);
+      let photoKeys: string[] = [];
 
       if (ids.length > 0) {
         const withScores = await tx.scoreEntry.findMany({
@@ -228,12 +231,19 @@ export async function undoStudentImport(id: string) {
             `Can't undo this import: ${withScores.length} of its ${ids.length} students already have scores recorded, and undoing would delete those scores too. Delete the students you don't want one by one instead.`
           );
         }
+        // Collected before the delete: removing the students removes their photo
+        // records too, and with them the only record of which files to delete.
+        photoKeys = await collectPhotoKeys({ importBatchId: id }, tx);
         await tx.student.deleteMany({ where: { importBatchId: id } });
       }
 
       await tx.studentImport.delete({ where: { id } });
-      return { removed: ids.length };
+      return { removed: ids.length, photoKeys };
     },
     { timeout: 30000, maxWait: 10000 }
   );
+
+  // Only once the transaction has committed, so a rolled-back undo never loses a photo.
+  await deleteUploadedFiles(outcome.photoKeys);
+  return { removed: outcome.removed };
 }

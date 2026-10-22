@@ -13,6 +13,12 @@ function getSecretKey() {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // UploadThing's servers call this path back after an upload, with no login
+  // cookie. It must pass through untouched — the route authenticates the
+  // requests that matter itself — and a signed-in user must not be redirected
+  // away from it either.
+  if (pathname === "/api/uploadthing") return NextResponse.next();
   const isPublic = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;

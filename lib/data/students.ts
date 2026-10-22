@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db";
+import { collectPhotoKeys } from "@/lib/data/photos";
+import { deleteUploadedFiles } from "@/lib/storage";
 import { averagePercentage } from "@/lib/scoring";
 import { EXPORT_WINDOW_DAYS, type ExportWindow } from "@/lib/export-window";
 
@@ -271,8 +273,15 @@ export async function updateStudent(id: string, firstName: string, lastName: str
   });
 }
 
+// Deleting a student cascades to their photo record, which would orphan the
+// file in UploadThing, so the file keys are collected first and the files are
+// deleted once the student is really gone. If the student can't be deleted,
+// their photo is left alone.
 export async function deleteStudent(id: string) {
-  return prisma.student.delete({ where: { id } });
+  const photoKeys = await collectPhotoKeys({ id });
+  const deleted = await prisma.student.delete({ where: { id } });
+  await deleteUploadedFiles(photoKeys);
+  return deleted;
 }
 
 // The students either side of `id` in the list's default "oldest added" order,
