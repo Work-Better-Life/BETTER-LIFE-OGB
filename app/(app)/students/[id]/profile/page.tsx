@@ -6,19 +6,43 @@ import { getStudentNeighbors } from "@/lib/data/students";
 import { requireSession } from "@/lib/auth";
 import { getProfile } from "@/lib/data/profiles";
 import { getPhoto } from "@/lib/data/photos";
+import { listAttendance } from "@/lib/data/attendance";
+import { summariseAttendance } from "@/lib/attendance";
+import { STUDENT_OVERVIEW_RANGES, rangeStartISO, type StudentOverviewRange } from "@/lib/trend-ranges";
 import { Badge } from "@/components/ui/badge";
 import { ProfileHighlights, ProfileMoreDetails, StatusBadge } from "@/components/students/profile-card";
 import { ExpandableDetails } from "@/components/students/expandable-details";
 import { StudentPager } from "@/components/students/student-pager";
 import { PhotoUploader } from "@/components/students/photo-uploader";
 import { StudentAvatar } from "@/components/students/student-avatar";
+import { AttendanceBadge } from "@/components/students/attendance-badge";
+import { AttendancePeriodSelect } from "@/components/students/attendance-period-select";
 
-export default async function StudentProfilePage({ params }: { params: Promise<{ id: string }> }) {
+function parsePeriod(value: string | undefined): StudentOverviewRange {
+  return value && value in STUDENT_OVERVIEW_RANGES ? (value as StudentOverviewRange) : "all";
+}
+
+export default async function StudentProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ period?: string }>;
+}) {
   const session = await requireSession();
   const { id } = await params;
+  const period = parsePeriod((await searchParams).period);
   const student = await prisma.student.findUnique({ where: { id }, include: { cohort: true } });
   if (!student) notFound();
-  const [profile, photo, neighbors] = await Promise.all([getProfile(id), getPhoto(id), getStudentNeighbors(id)]);
+  const [profile, photo, neighbors, attendanceRecords] = await Promise.all([
+    getProfile(id),
+    getPhoto(id),
+    getStudentNeighbors(id),
+    listAttendance(id),
+  ]);
+  // Attendance over the chosen period (All time, 30 days, 3 months…).
+  const periodStart = rangeStartISO(period);
+  const attendanceSummary = summariseAttendance(attendanceRecords, periodStart ? new Date(periodStart) : undefined);
   const cohort = student.cohort;
   const fullName = `${student.firstName} ${student.lastName}`;
 
@@ -49,6 +73,12 @@ export default async function StudentProfilePage({ params }: { params: Promise<{
                 <div className="mt-2 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                   <Badge>{student.serialNumber}</Badge>
                   {profile && <StatusBadge status={profile.status} />}
+                  <AttendanceBadge
+                    summary={attendanceSummary}
+                    hasAnyRecords={attendanceRecords.length > 0}
+                    periodLabel={STUDENT_OVERVIEW_RANGES[period].label.toLowerCase()}
+                  />
+                  {attendanceRecords.length > 0 && <AttendancePeriodSelect studentId={id} value={period} />}
                 </div>
               </div>
               {profile && session.canWrite && (

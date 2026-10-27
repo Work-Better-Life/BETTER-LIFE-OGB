@@ -4,9 +4,6 @@ import Link from "next/link";
 import { getStudentDetail, getStudentNeighbors } from "@/lib/data/students";
 import { requireSession } from "@/lib/auth";
 import { listCohorts } from "@/lib/data/cohorts";
-import { listAttendance } from "@/lib/data/attendance";
-import { summariseAttendance } from "@/lib/attendance";
-import { AttendanceBadge } from "@/components/students/attendance-badge";
 import { listSubjectsForPicker } from "@/lib/data/subjects";
 import { consistencyScore } from "@/lib/scoring";
 import { ConsistencyBadge } from "@/components/ui/badge";
@@ -35,20 +32,17 @@ export default async function StudentDetailPage({
   const range = parseRange(rangeParam);
   const startISO = rangeStartISO(range);
 
-  const [student, subjects, neighbors, cohorts, attendanceRecords] = await Promise.all([
+  const [student, subjects, neighbors, cohorts] = await Promise.all([
     getStudentDetail(id, startISO),
     listSubjectsForPicker(),
     getStudentNeighbors(id),
     listCohorts(),
-    listAttendance(id),
   ]);
 
   if (!student) notFound();
 
   const allEntriesSorted = [...student.rawScores].sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
   const overallConsistency = consistencyScore(allEntriesSorted);
-  // Attendance uses the same period as the chart (All time, 30 days, 3 months…).
-  const attendanceSummary = summariseAttendance(attendanceRecords, startISO ? new Date(startISO) : undefined);
 
   const trendPoints = buildTrendPoints(student.rawScores);
   const comparisonSubjects = student.subjects.map((subject) => ({
@@ -82,11 +76,6 @@ export default async function StudentDetailPage({
               <Badge variant="primary">{student.averagePercentage.toFixed(1)}% average</Badge>
             )}
             <ConsistencyBadge score={overallConsistency} />
-            <AttendanceBadge
-              summary={attendanceSummary}
-              hasAnyRecords={attendanceRecords.length > 0}
-              periodLabel={STUDENT_OVERVIEW_RANGES[range].label.toLowerCase()}
-            />
           </div>
         </div>
         <div className="flex items-center gap-2">

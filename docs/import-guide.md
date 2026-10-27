@@ -153,8 +153,9 @@ Ada EXAMPLE,5,2026-09-21
 
 ### How the attendance rate is worked out
 
-- Rate = **days attended ÷ (5 × weeks recorded)** over the period selected on the student's page
-  (the same selector as the chart: All time, 30 days, 3 months, 6 months, 1 year).
+- Shown on the student's **Profile** page, as a badge beside their serial number and status, with its own
+  period dropdown. Rate = **days attended ÷ (5 × weeks recorded)** over the chosen period (All time, 30 days,
+  3 months, 6 months or 1 year).
 - A week with **no record isn't counted** (a holiday, or simply not recorded). A student who missed the
   whole week has a record of **0**, which does count.
 - A rate needs **at least 4 weeks** of records in the period; with fewer the badge says "2 of 4 weeks
