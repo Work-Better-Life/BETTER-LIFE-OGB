@@ -10,6 +10,7 @@ import { LogoMark } from "@/components/ui/logo-mark";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { logoutAction } from "@/lib/actions/auth";
 import { cn } from "@/lib/cn";
+import { useStudentsListHref } from "@/lib/students-list-memory";
 
 function NavLinks({
   pathname,
@@ -18,15 +19,20 @@ function NavLinks({
   pathname: string;
   onNavigate?: () => void;
 }) {
+  const studentsListHref = useStudentsListHref();
   return (
     <nav className="flex flex-1 flex-col gap-3 px-3">
       {NAV_ITEMS.map((item) => {
         const active =
           pathname === item.href || pathname.startsWith(`${item.href}/`);
+        // From a student's page, "Students" returns to the list view you left. If
+        // you're already on the list it goes to the plain list, which is how you
+        // reset back to page 1.
+        const href = item.href === "/students" && pathname !== "/students" ? studentsListHref : item.href;
         return (
           <Link
             key={item.href}
-            href={item.href}
+            href={href}
             onClick={onNavigate}
             className={cn(
               "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150",

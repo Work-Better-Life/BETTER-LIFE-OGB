@@ -4,10 +4,12 @@ export function Badge({
   children,
   variant = "neutral",
   className,
+  title,
 }: {
   children: React.ReactNode;
   variant?: "neutral" | "primary" | "danger";
   className?: string;
+  title?: string;
 }) {
   const variantClasses = {
     neutral: "bg-surface-muted text-foreground-muted",
@@ -17,6 +19,7 @@ export function Badge({
 
   return (
     <span
+      title={title}
       className={cn(
         "inline-flex items-center rounded-sm px-2 py-0.5 text-xs font-medium tracking-wide",
         variantClasses[variant],

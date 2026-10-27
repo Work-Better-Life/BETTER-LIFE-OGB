@@ -87,7 +87,8 @@ export function ImportScoresForm({ cohorts }: { cohorts: CohortOption[] }) {
             <p className="text-xs text-foreground-muted">
               Excel (.xlsx, .xls), OpenDocument (.ods) or CSV. One row per student with a <strong>Name</strong>{" "}
               column, then one column per subject with its max score in brackets, like <em>Mathematics (10)</em>.
-              Write ABSENT for anyone who missed it — they&apos;re saved as 0. Example file:{" "}
+              Write ABSENT for anyone who missed it — they&apos;re saved as 0. Add an optional <strong>Attendance (5)</strong>{" "}
+              column (days attended that week, 0 to 5) to record attendance with the scores. Example file:{" "}
               <a href="/import-samples/scores-sample.csv" download className="text-primary-strong hover:underline">
                 CSV
               </a>
@@ -165,8 +166,8 @@ export function ImportScoresForm({ cohorts }: { cohorts: CohortOption[] }) {
 
       {imported && report && (
         <div role="status" className="rounded-lg border border-border bg-primary-soft p-4 text-sm text-primary-strong">
-          Imported {imported.entryCount} scores for {imported.studentCount} students as &ldquo;{report.testName}&rdquo;.
-          You can undo it from the list below.
+          Imported {imported.entryCount} scores for {imported.studentCount} students as &ldquo;{report.testName}&rdquo;
+          {imported.attendanceCount > 0 && <>, with attendance for {imported.attendanceCount}</>}. You can undo it from the list below.
         </div>
       )}
 
@@ -182,8 +183,9 @@ export function ImportScoresForm({ cohorts }: { cohorts: CohortOption[] }) {
           {report.canImport ? (
             <div role="status" className="rounded-lg border border-border bg-primary-soft p-4 text-sm text-primary-strong">
               Everything checks out: {report.counts.students} students, {report.counts.scores} scores
-              {report.counts.absentZeros > 0 && <> ({report.counts.absentZeros} absent saved as 0)</>}. Nothing is saved
-              until you click Import.
+              {report.counts.absentZeros > 0 && <> ({report.counts.absentZeros} absent saved as 0)</>}
+              {report.hasAttendance && <>, plus attendance for the week of {new Date(`${report.weekOf}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })} ({report.counts.attendance} students)</>}
+              . Nothing is saved until you click Import.
             </div>
           ) : (
             <div role="alert" className="rounded-lg border border-danger/40 bg-danger/10 p-4 text-sm text-danger">
@@ -250,6 +252,7 @@ export function ImportScoresForm({ cohorts }: { cohorts: CohortOption[] }) {
                           {s.name}
                         </th>
                       ))}
+                      {report.hasAttendance && <th className="px-3 py-2">Attendance</th>}
                       <th className="px-3 py-2" />
                     </tr>
                   </thead>
@@ -265,6 +268,9 @@ export function ImportScoresForm({ cohorts }: { cohorts: CohortOption[] }) {
                             {score}
                           </td>
                         ))}
+                        {report.hasAttendance && (
+                          <td className="px-3 py-2 text-foreground-muted">{row.attendance === null ? "—" : `${row.attendance} / 5`}</td>
+                        )}
                         <td className="px-3 py-2">
                           {row.problems.length > 0 ? (
                             <Badge variant="danger">Fix</Badge>

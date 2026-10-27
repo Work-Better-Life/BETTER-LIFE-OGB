@@ -9,7 +9,8 @@ again, and click Import.
 |---|---|---|
 | Student registrations (new students) | Students → Import → *Add new students* | `students-sample.csv` / `.xlsx` |
 | Profiles for students already in the app | Students → Import → *Add profiles to existing students* | same columns as above |
-| Test scores | Dashboard → Record a test → Import file | `scores-sample.csv` / `.xlsx` |
+| Test scores (optionally with attendance) | Dashboard → Record a test → Import file | `scores-sample.csv` / `.xlsx` |
+| Attendance only (past weeks) | Dashboard → Record a test → Import attendance | `attendance-sample.csv` / `.xlsx` |
 
 The example files are in `public/import-samples/` and are linked from each import page.
 They go together: import `students-sample` first, then `scores-sample` matches those
@@ -118,10 +119,52 @@ S/N,Name,Mathematics (10),English (10),Biology (10),Physics (10),Chemistry (10),
   an absent student. Columns like `S/N` are ignored.
 - **The test name and the date are typed on the import page**, not in the file. Give each test
   its own name (`Week 8`) so results stay separate.
+- **Attendance column** (optional): add `Attendance (5)` — the number of days the student attended
+  that week, a whole number from **0 to 5** (classes run five days a week). It's recorded for the
+  week that contains the test date. Write `0` (or `ABSENT`) for a student who missed the whole week;
+  **a blank cell is flagged** — it would otherwise be mistaken for "not recorded". It isn't a
+  subject, so it never affects the Total check. If attendance for that week is already recorded,
+  leave the column out of a second file for the same week.
+- **The same scores can't be imported twice.** If an identical file was already imported (and not
+  undone), the check names the date it was imported. **Undo** the earlier import to import it again.
+  A corrected file is also caught per student ("Already has scores for …"), so undo the first one.
 
 ---
 
-## 3. Tips
+## 3. Attendance only (weeks recorded earlier)
+
+For weeks that were recorded before attendance existed, use **Record a test → Import attendance**.
+
+```
+Name,Attendance (5),Week
+Ada EXAMPLE,5,2026-09-14
+Chidi SAMPLE,4,2026-09-14
+Ada EXAMPLE,5,2026-09-21
+```
+
+- **Name** and **Attendance (5)** (days attended, 0 to 5) are required.
+- **Week** is optional: any date in that week (a Monday–Sunday week; a Saturday or Sunday counts for the
+  week that just ended). With a Week column one file can hold many weeks. Without one, every row is for
+  the week you pick on the import page. A date in the file wins over the page.
+- A student can't have two rows for the same week, a week that hasn't started yet is refused, and a
+  week that's already recorded for that student is flagged (undo the earlier import first).
+- Like the other imports it lists every problem first, saves nothing until the file is clean, matches
+  names within the group you choose, and can be undone from *Recent imports*.
+
+### How the attendance rate is worked out
+
+- Shown on the student's **Profile** page, as a badge beside their serial number and status, with its own
+  period dropdown. Rate = **days attended ÷ (5 × weeks recorded)** over the chosen period (All time, 30 days,
+  3 months, 6 months or 1 year).
+- A week with **no record isn't counted** (a holiday, or simply not recorded). A student who missed the
+  whole week has a record of **0**, which does count.
+- A rate needs **at least 4 weeks** of records in the period; with fewer the badge says "2 of 4 weeks
+  recorded" instead of showing a misleading percentage.
+- Bands: **High attendance** 90% and above, **Medium** 75–89%, **Low** below 75%.
+
+---
+
+## 4. Tips
 
 **Dates.** Write dates as **`2008-03-14`** (year-month-day) and they can never be misread.
 `03/04/2008` could mean 3 April or March 4, so the import page has a setting for which way to
@@ -138,7 +181,7 @@ The example `.xlsx` already does this.
 
 ---
 
-## 4. What the messages mean
+## 5. What the messages mean
 
 | Message | Fix |
 |---|---|
@@ -160,3 +203,12 @@ The example `.xlsx` already does this.
 | Not in cohort 2026 — but a student with this name is in cohort 2027 | You chose the wrong cohort on the import page |
 | Already has scores for "Week 8" on … | That test was already imported for that student — remove the row, or Undo the earlier import |
 | "Week 8" already exists in Physics with a max of 50 | Use a different test name, or fix the max in the heading |
+| Attendance is blank — enter the days attended | Type a number from 0 to 5 (0, or ABSENT, if they missed the whole week) |
+| Attendance "…" must be a whole number of days from 0 to 5 | Use 0, 1, 2, 3, 4 or 5 — no decimals or text |
+| Attendance: 6 is more than the 5 days in a week | Correct the number (maximum is 5) |
+| "Attendance (4)": attendance is out of 5 days | Write the heading as `Attendance (5)` |
+| Attendance for the week of … is already recorded (N days) | That week is already in. Leave the Attendance column out of this file, or undo the earlier import |
+| These exact scores (or this exact attendance) were already imported on … | The same file was imported before. Undo that import first if you want to import it again |
+| The week of … hasn't started yet | The Week date is in the future — check it |
+| Week "…" isn't a date I can read | Write it like `2026-09-14` |
+| No "Attendance (5)" column found | The attendance-only file needs a Name column and an `Attendance (5)` column |

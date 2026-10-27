@@ -7,6 +7,7 @@ import { Drawer } from "@/components/ui/drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StudentForm } from "./student-form";
 import { updateStudentAction, deleteStudentAction } from "@/lib/actions/students";
+import { useStudentsListHref } from "@/lib/students-list-memory";
 
 export function StudentHeaderActions({
   student,
@@ -16,6 +17,7 @@ export function StudentHeaderActions({
   cohorts: { id: string; name: string }[];
 }) {
   const router = useRouter();
+  const listHref = useStudentsListHref();
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -23,7 +25,7 @@ export function StudentHeaderActions({
   function handleDelete() {
     startTransition(async () => {
       await deleteStudentAction(student.id);
-      router.push("/students");
+      router.push(listHref);
     });
   }
 

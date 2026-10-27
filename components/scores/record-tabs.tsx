@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import { BulkScoreForm } from "@/components/scores/bulk-score-form";
 import { BulkScoreGridForm } from "@/components/scores/bulk-score-grid-form";
 import { ImportScoresForm } from "@/components/scores/import-scores-form";
+import { ImportAttendanceForm } from "@/components/scores/import-attendance-form";
 import { RecentImports } from "@/components/scores/recent-imports";
 
 type Topic = { id: string; name: string; defaultMaxScore: number };
@@ -20,6 +21,8 @@ type ScoreImportRow = {
   createdAt: string;
   entryCount: number;
   remaining: number;
+  kind: "scores" | "attendance";
+  attendanceRecords: number;
 };
 
 const MODES = [
@@ -29,6 +32,11 @@ const MODES = [
     value: "import",
     label: "Import file",
     description: "Upload a spreadsheet of scores (Excel, OpenDocument or CSV). Everything is checked first, and nothing is saved until the file has no problems.",
+  },
+  {
+    value: "attendance",
+    label: "Import attendance",
+    description: "Upload attendance only (days attended out of 5 each week), for weeks that were recorded before attendance existed.",
   },
 ] as const;
 
@@ -103,6 +111,12 @@ export function RecordTabs({
       {mode === "import" && (
         <>
           <ImportScoresForm cohorts={cohorts} />
+          <RecentImports imports={imports} />
+        </>
+      )}
+      {mode === "attendance" && (
+        <>
+          <ImportAttendanceForm cohorts={cohorts} />
           <RecentImports imports={imports} />
         </>
       )}
