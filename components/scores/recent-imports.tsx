@@ -14,6 +14,8 @@ type ImportRow = {
   createdAt: string;
   entryCount: number;
   remaining: number;
+  kind: "scores" | "attendance";
+  attendanceRecords: number;
 };
 
 function formatDay(iso: string) {
@@ -36,7 +38,13 @@ export function RecentImports({ imports }: { imports: ImportRow[] }) {
       setMessage(
         result.error
           ? { text: result.error, isError: true }
-          : { text: `Undid “${target.testName}” — ${result.removed} scores removed.`, isError: false }
+          : {
+              text:
+                target.kind === "attendance"
+                  ? `Undid “${target.testName}” — ${result.removedAttendance} attendance records removed.`
+                  : `Undid “${target.testName}” — ${result.removed} scores removed${result.removedAttendance ? ` and ${result.removedAttendance} attendance records` : ""}.`,
+              isError: false,
+            }
       );
     });
   }
@@ -67,7 +75,9 @@ export function RecentImports({ imports }: { imports: ImportRow[] }) {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-foreground-muted">
-                  {item.remaining === item.entryCount ? `${item.entryCount} scores` : `${item.remaining} of ${item.entryCount} scores left`}
+                  {item.kind === "attendance"
+                    ? `${item.attendanceRecords} attendance records`
+                    : `${item.remaining === item.entryCount ? `${item.entryCount} scores` : `${item.remaining} of ${item.entryCount} scores left`}${item.attendanceRecords > 0 ? ` + ${item.attendanceRecords} attendance` : ""}`}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <Button variant="ghost" size="sm" onClick={() => setUndoing(item)}>
@@ -83,7 +93,11 @@ export function RecentImports({ imports }: { imports: ImportRow[] }) {
       <ConfirmDialog
         open={!!undoing}
         title={`Undo “${undoing?.testName}”?`}
-        description={`This removes the ${undoing?.remaining ?? 0} scores this import added, and the “${undoing?.testName}” test itself if nothing else uses it. Scores you've edited since the import are removed too. This can't be undone, but you can import the file again.`}
+        description={
+          undoing?.kind === "attendance"
+            ? `This removes the ${undoing.attendanceRecords} attendance records this import added. Scores aren't touched. This can't be undone, but you can import the file again.`
+            : `This removes the ${undoing?.remaining ?? 0} scores this import added${undoing && undoing.attendanceRecords > 0 ? `, and its ${undoing.attendanceRecords} attendance records` : ""}, and the “${undoing?.testName}” test itself if nothing else uses it. Scores you've edited since the import are removed too. This can't be undone, but you can import the file again.`
+        }
         onConfirm={handleUndo}
         onCancel={() => setUndoing(null)}
         pending={pending}

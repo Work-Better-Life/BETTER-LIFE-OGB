@@ -27,6 +27,7 @@ model Student {
   scores        ScoreEntry[]
   profile       StudentProfile?
   photo         StudentPhoto?
+  attendance    Attendance[]
   // Nullable so existing students need no backfill; null means "No cohort".
   cohortId      String?
   cohort        Cohort?         @relation(fields: [cohortId], references: [id], onDelete: SetNull)
@@ -175,6 +176,12 @@ model ScoreEntry {
 // One CSV score import. Kept so it can be listed and undone as a unit.
 model ScoreImport {
   id              String       @id @default(cuid())
+  // null / "scores" = a test-score import (which may also carry attendance);
+  // "attendance" = an attendance-only import (for weeks recorded earlier).
+  kind            String?
+  // SHA-256 of the file's cell contents, so the same scores can't be imported
+  // twice. Removed together with the import when it's undone.
+  fileHash        String?
   testName        String
   fileName        String?
   cohortName      String? // snapshot of the cohort chosen at upload, for display
@@ -183,4 +190,25 @@ model ScoreImport {
   createdTopicIds String       @default("[]") // JSON array: topics this import created, removed again on undo if empty
   createdAt       DateTime     @default(now())
   entries         ScoreEntry[]
+  attendance      Attendance[]
+
+  @@index([fileHash])
+}
+
+// Days a student attended in one school week (classes run 5 days a week). One row
+// per student per week; a week with no row is "not recorded", which is different
+// from 0 days attended.
+model Attendance {
+  id            String       @id @default(cuid())
+  studentId     String
+  student       Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  // The Monday (UTC midnight) of the week this covers.
+  weekStart     DateTime
+  daysAttended  Int // 0-5
+  importBatchId String?
+  importBatch   ScoreImport? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+
+  @@unique([studentId, weekStart])
+  @@index([importBatchId])
 }

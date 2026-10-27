@@ -1,5 +1,5 @@
-S/N,Name,Mathematics (10),English (10),Biology (10),Physics (10),Chemistry (10),Total (50)
-1,Ada EXAMPLE,8,7.5,9,6,8,38.5
-2,Chidi SAMPLE,10,8,7,9,8.5,42.5
-3,Zainab DEMO,5,9,6.5,4,7,31.5
-4,Emeka MODEL STUDENT,ABSENT,ABSENT,ABSENT,ABSENT,ABSENT,-
+S/N,Name,Mathematics (10),English (10),Biology (10),Physics (10),Chemistry (10),Total (50),Attendance (5)
+1,Ada EXAMPLE,8,7.5,9,6,8,38.5,5
+2,Chidi SAMPLE,10,8,7,9,8.5,42.5,4
+3,Zainab DEMO,5,9,6.5,4,7,31.5,3
+4,Emeka MODEL STUDENT,ABSENT,ABSENT,ABSENT,ABSENT,ABSENT,-,0

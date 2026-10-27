@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db";
+import { weekStartOf } from "@/lib/attendance";
+import { hashTableContents } from "@/lib/file-hash";
 import {
   SUM_TOLERANCE,
   editDistance,
@@ -17,6 +19,7 @@ export type ImportRowReport = {
   student: { id: string; name: string; serialNumber: string } | null;
   scores: number[]; // one per subject column, ABSENT shown as 0
   absentCount: number;
+  attendance: number | null; // days attended that week; null when the file has no Attendance column
   problems: string[];
 };
 
@@ -26,11 +29,13 @@ export type ScoreImportReport = {
   cohortLabel: string;
   sheetName: string | null; // which sheet was read, for workbooks
   headerRow: number;
+  hasAttendance: boolean;
+  weekOf: string; // the Monday of the week attendance is recorded against
   subjects: { name: string; max: number }[];
   fileProblems: string[];
   rows: ImportRowReport[];
   notInFile: string[];
-  counts: { students: number; scores: number; absentZeros: number; problems: number };
+  counts: { students: number; scores: number; absentZeros: number; attendance: number; problems: number };
   canImport: boolean;
 };
 
@@ -39,8 +44,10 @@ type Plan = {
   date: Date;
   cohortLabel: string;
   fileName: string | null;
+  fileHash: string;
+  weekStart: Date;
   columns: { subjectId: string; max: number; topicId: string | null }[];
-  students: { studentId: string; values: number[] }[];
+  students: { studentId: string; values: number[]; attendance: number | null }[];
 };
 
 export type AnalyzeResult = { ok: false; error: string } | { ok: true; report: ScoreImportReport; plan: Plan };
@@ -180,6 +187,7 @@ export async function analyzeScoreImport(
     }
 
     for (const cell of cells) if (cell.kind === "bad") problems.push(cell.problem + ".");
+    if (row.attendance?.kind === "bad") problems.push(row.attendance.problem + ".");
 
     // Skip the Total check while a subject column is unusable: the sum would
     // leave that subject out and flag every row falsely. It runs once the
@@ -195,6 +203,7 @@ export async function analyzeScoreImport(
       student,
       scores: cells.map(cellScore),
       absentCount: cells.filter((c) => c.kind === "absent").length,
+      attendance: row.attendance?.kind === "days" ? row.attendance.value : null,
       problems,
     };
   });
@@ -222,6 +231,39 @@ export async function analyzeScoreImport(
     }
   }
 
+  // Attendance already recorded for this week. One record per student per week, so
+  // a second file for the same week must leave its Attendance column out.
+  const weekStart = weekStartOf(date);
+  if (sheet.hasAttendance && matchedIds.length > 0) {
+    const recorded = await prisma.attendance.findMany({
+      where: { studentId: { in: matchedIds }, weekStart },
+      select: { studentId: true, daysAttended: true },
+    });
+    const daysByStudent = new Map(recorded.map((a) => [a.studentId, a.daysAttended]));
+    for (const row of rows) {
+      const already = row.student ? daysByStudent.get(row.student.id) : undefined;
+      if (already !== undefined) {
+        row.problems.push(
+          `Attendance for the week of ${formatDate(weekStart)} is already recorded (${already} ${already === 1 ? "day" : "days"}). Leave the Attendance column out, or undo the earlier import.`
+        );
+      }
+    }
+  }
+
+  // The same scores imported twice. The row checks above catch most repeats; this
+  // catches the whole file, and names when it was imported.
+  const fileHash = hashTableContents(table);
+  const earlier = await prisma.scoreImport.findFirst({
+    where: { fileHash },
+    orderBy: { createdAt: "desc" },
+    select: { testName: true, createdAt: true },
+  });
+  if (earlier) {
+    fileProblems.push(
+      `These exact scores were already imported on ${formatDate(earlier.createdAt)} as "${earlier.testName}". Undo that import first if you want to import them again.`
+    );
+  }
+
   // Students in the cohort who aren't in the file at all: information, not an error.
   const notInFile =
     options.cohort === "all"
@@ -239,6 +281,8 @@ export async function analyzeScoreImport(
     cohortLabel,
     sheetName: options.sheetName ?? null,
     headerRow: sheet.headerRow,
+    hasAttendance: sheet.hasAttendance,
+    weekOf: weekStart.toISOString().slice(0, 10),
     subjects: reportSubjects,
     fileProblems,
     rows,
@@ -247,6 +291,7 @@ export async function analyzeScoreImport(
       students: goodRows.length,
       scores: goodRows.length * columns.length,
       absentZeros: goodRows.reduce((sum, r) => sum + r.absentCount, 0),
+      attendance: goodRows.filter((r) => r.attendance !== null).length,
       problems: fileProblems.length + problemRows,
     },
     canImport: fileProblems.length === 0 && rows.length > 0 && problemRows === 0 && columns.length > 0,
@@ -257,8 +302,10 @@ export async function analyzeScoreImport(
     date,
     cohortLabel,
     fileName: options.fileName ?? null,
+    fileHash,
+    weekStart,
     columns,
-    students: goodRows.map((r) => ({ studentId: r.student!.id, values: r.scores })),
+    students: goodRows.map((r) => ({ studentId: r.student!.id, values: r.scores, attendance: r.attendance })),
   };
   return { ok: true, report, plan };
 }
@@ -276,6 +323,7 @@ export async function commitScoreImport(plan: Plan) {
           cohortName: plan.cohortLabel,
           recordedAt: plan.date,
           entryCount: plan.students.length * plan.columns.length,
+          fileHash: plan.fileHash,
         },
       });
 
@@ -307,10 +355,26 @@ export async function commitScoreImport(plan: Plan) {
         await tx.scoreEntry.createMany({ data: entries.slice(start, start + CHUNK) });
       }
 
+      // Attendance for the week, recorded in the same transaction and tagged with the
+      // same import, so undoing the import removes it too.
+      const attendance = plan.students.flatMap((student) =>
+        student.attendance === null
+          ? []
+          : [{ studentId: student.studentId, weekStart: plan.weekStart, daysAttended: student.attendance, importBatchId: batch.id }]
+      );
+      for (let start = 0; start < attendance.length; start += CHUNK) {
+        await tx.attendance.createMany({ data: attendance.slice(start, start + CHUNK) });
+      }
+
       if (createdTopicIds.length > 0) {
         await tx.scoreImport.update({ where: { id: batch.id }, data: { createdTopicIds: JSON.stringify(createdTopicIds) } });
       }
-      return { importId: batch.id, entryCount: entries.length, studentIds: plan.students.map((s) => s.studentId) };
+      return {
+        importId: batch.id,
+        entryCount: entries.length,
+        attendanceCount: attendance.length,
+        studentIds: plan.students.map((s) => s.studentId),
+      };
     },
     { timeout: 30000, maxWait: 10000 }
   );
@@ -320,10 +384,11 @@ export async function listScoreImports(limit = 10) {
   const imports = await prisma.scoreImport.findMany({
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { _count: { select: { entries: true } } },
+    include: { _count: { select: { entries: true, attendance: true } } },
   });
   return imports.map((i) => ({
     id: i.id,
+    kind: (i.kind === "attendance" ? "attendance" : "scores") as "scores" | "attendance",
     testName: i.testName,
     fileName: i.fileName,
     cohortName: i.cohortName,
@@ -331,6 +396,7 @@ export async function listScoreImports(limit = 10) {
     createdAt: i.createdAt.toISOString(),
     entryCount: i.entryCount,
     remaining: i._count.entries,
+    attendanceRecords: i._count.attendance,
   }));
 }
 
@@ -344,6 +410,10 @@ export async function undoScoreImport(id: string) {
 
       const affected = await tx.scoreEntry.findMany({ where: { importBatchId: id }, select: { studentId: true } });
       const removed = await tx.scoreEntry.deleteMany({ where: { importBatchId: id } });
+      // Deleted explicitly: the link from attendance to its import only clears
+      // itself when the import goes, it wouldn't remove the records.
+      const attendanceRows = await tx.attendance.findMany({ where: { importBatchId: id }, select: { studentId: true } });
+      const removedAttendance = await tx.attendance.deleteMany({ where: { importBatchId: id } });
 
       let topicIds: string[] = [];
       try {
@@ -357,7 +427,11 @@ export async function undoScoreImport(id: string) {
       }
 
       await tx.scoreImport.delete({ where: { id } });
-      return { removed: removed.count, studentIds: Array.from(new Set(affected.map((e) => e.studentId))) };
+      return {
+        removed: removed.count,
+        removedAttendance: removedAttendance.count,
+        studentIds: Array.from(new Set([...affected, ...attendanceRows].map((e) => e.studentId))),
+      };
     },
     { timeout: 30000, maxWait: 10000 }
   );

@@ -8,6 +8,8 @@
 // - "Name" holds the student's name, first name and surname in either order.
 // - Each subject column carries its max score in brackets: "Mathematics (10)".
 // - "Total (..)" is optional and only used to double-check the row's sum.
+// - An optional "Attendance (5)" column holds the days the student attended that
+//   week (0-5). It isn't a subject and has no score; it's recorded separately.
 // - Anything else (S/N, position, ...) is ignored.
 // - A score cell is a number, or ABSENT, which is saved as a zero.
 
@@ -18,25 +20,46 @@ export type SheetCell =
   | { kind: "absent" }
   | { kind: "bad"; problem: string };
 
+// Days attended in the week, out of 5.
+export type AttendanceCell = { kind: "days"; value: number } | { kind: "bad"; problem: string };
+
 export type SheetRow = {
   line: number;
   name: string;
   cells: SheetCell[]; // same order as `columns`
+  attendance: AttendanceCell | null; // null when the file has no Attendance column
   total: number | null; // null when the Total cell is missing, "-" or not a number
 };
 
 export type ParsedSheet = {
   fileProblems: string[];
+  hasAttendance: boolean;
   columns: SheetColumn[];
   rows: SheetRow[];
   headerRow: number; // 1-based spreadsheet row the headers were found on
 };
 
 const SUBJECT_HEADER = /^(.*?)\s*\(\s*(\d+(?:\.\d+)?)\s*\)\s*$/;
-const NAME_HEADER = /^(student\s*)?name$|^full\s*name$|^student$/i;
+export const NAME_HEADER = /^(student\s*)?name$|^full\s*name$|^student$/i;
+export const ATTENDANCE_HEADER = /^attendance\b/i;
 const TOTAL_HEADER = /^total\b/i;
 const NUMBER = /^\d+(?:\.\d+)?$/;
 const ABSENT = /^(absent|abs|ab)$/i;
+
+// One attendance cell: a whole number of days from 0 to 5. ABSENT means the whole
+// week was missed (0). Blank is a problem, not a silent zero: a week with no
+// record is "not recorded", which is different from "attended no days".
+export function parseAttendanceCell(raw: string, daysPerWeek = 5): AttendanceCell {
+  const cell = raw.trim();
+  if (cell === "") return { kind: "bad", problem: `Attendance is blank — enter the days attended (0 to ${daysPerWeek}), or 0` };
+  if (ABSENT.test(cell)) return { kind: "days", value: 0 };
+  if (!/^\d+$/.test(cell)) {
+    return { kind: "bad", problem: `Attendance "${cell}" must be a whole number of days from 0 to ${daysPerWeek}` };
+  }
+  const value = Number(cell);
+  if (value > daysPerWeek) return { kind: "bad", problem: `Attendance: ${value} is more than the ${daysPerWeek} days in a week` };
+  return { kind: "days", value };
+}
 
 export const SUM_TOLERANCE = 0.001;
 
@@ -52,7 +75,7 @@ function findHeaderRow(table: string[][]): number {
     const hasName = cells.some((cell) => NAME_HEADER.test(cell));
     const hasSubject = cells.some((cell) => {
       const match = cell.match(SUBJECT_HEADER);
-      return !!match && match[1].trim() !== "" && !TOTAL_HEADER.test(cell);
+      return !!match && match[1].trim() !== "" && !TOTAL_HEADER.test(cell) && !ATTENDANCE_HEADER.test(cell);
     });
     if (hasName && hasSubject) return i;
   }
@@ -64,13 +87,14 @@ export function parseScoreSheet(table: string[][], knownSubjectNames: string[]):
   const headerIndex = findHeaderRow(table);
   const headerRow = headerIndex + 1;
   if (table.length < headerIndex + 2) {
-    return { fileProblems: ["The file has no student rows."], columns: [], rows: [], headerRow };
+    return { fileProblems: ["The file has no student rows."], hasAttendance: false, columns: [], rows: [], headerRow };
   }
 
   const headers = (table[headerIndex] ?? []).map((h) => h.trim());
   const known = new Set(knownSubjectNames.map((n) => n.toLowerCase()));
 
   let nameIndex = -1;
+  let attendanceIndex = -1;
   let totalIndex = -1;
   let totalMax: number | null = null;
   const columns: SheetColumn[] = [];
@@ -79,6 +103,15 @@ export function parseScoreSheet(table: string[][], knownSubjectNames: string[]):
   headers.forEach((header, index) => {
     if (nameIndex === -1 && NAME_HEADER.test(header)) {
       nameIndex = index;
+      return;
+    }
+    // Checked before the subject rule: "Attendance (5)" looks like a subject with a max.
+    if (attendanceIndex === -1 && ATTENDANCE_HEADER.test(header)) {
+      attendanceIndex = index;
+      const bracket = header.match(SUBJECT_HEADER);
+      if (bracket && Number(bracket[2]) !== 5) {
+        fileProblems.push(`"${header}": attendance is out of 5 days (a school week). Write it as "Attendance (5)".`);
+      }
       return;
     }
     if (totalIndex === -1 && TOTAL_HEADER.test(header)) {
@@ -119,7 +152,8 @@ export function parseScoreSheet(table: string[][], knownSubjectNames: string[]):
       fileProblems.push(`The Total column says out of ${totalMax}, but the subject maxes add up to ${sumOfMaxes}.`);
     }
   }
-  if (nameIndex === -1 || columns.length === 0) return { fileProblems, columns, rows: [], headerRow };
+  const hasAttendance = attendanceIndex !== -1;
+  if (nameIndex === -1 || columns.length === 0) return { fileProblems, hasAttendance, columns, rows: [], headerRow };
 
   const rows: SheetRow[] = [];
   table.slice(headerIndex + 1).forEach((cells, i) => {
@@ -141,11 +175,12 @@ export function parseScoreSheet(table: string[][], knownSubjectNames: string[]):
     });
 
     const totalCell = totalIndex === -1 ? "" : (cells[totalIndex] ?? "").trim();
-    rows.push({ line, name, cells: parsedCells, total: NUMBER.test(totalCell) ? Number(totalCell) : null });
+    const attendance = hasAttendance ? parseAttendanceCell(cells[attendanceIndex] ?? "") : null;
+    rows.push({ line, name, cells: parsedCells, attendance, total: NUMBER.test(totalCell) ? Number(totalCell) : null });
   });
 
   if (rows.length === 0) fileProblems.push("The file has no student rows.");
-  return { fileProblems, columns, rows, headerRow };
+  return { fileProblems, hasAttendance, columns, rows, headerRow };
 }
 
 // Sum of a row's scores, counting ABSENT as 0. Null if any cell is unusable.
