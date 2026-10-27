@@ -7,7 +7,8 @@ again, and click Import.
 
 | Import | Where | Example file |
 |---|---|---|
-| Student registrations | Students → Import | `students-sample.csv` / `.xlsx` |
+| Student registrations (new students) | Students → Import → *Add new students* | `students-sample.csv` / `.xlsx` |
+| Profiles for students already in the app | Students → Import → *Add profiles to existing students* | same columns as above |
 | Test scores | Dashboard → Record a test → Import file | `scores-sample.csv` / `.xlsx` |
 
 The example files are in `public/import-samples/` and are linked from each import page.
@@ -26,14 +27,14 @@ rows are skipped.
 
 | Column | Required? | What to put |
 |---|---|---|
-| Full Name | Yes | First name, then surname — at least two words. `Ada Okafor` or `Ada OKAFOR`. Everything after the first word is the surname. |
+| Full Name — or First Name and Last Name | Yes | Either one **Full Name** column (first name, then surname, at least two words: `Ada Okafor`; everything after the first word is the surname), or two columns, **First Name** and **Last Name**. If both exist, First/Last are used. |
 | Gender | Yes | `Female` or `Male` |
 | Date of Birth | Yes | A date. Best written `2008-03-14` (see *Dates* below). |
 | House Address | No | Free text |
 | Name of Secondary School you attend | Yes | Free text |
 | School Address / Area | Yes | Free text |
 | Current Class | Yes | `SS2`, `SS3`, or `Graduated Secondary (Resitting JAMB)` |
-| Select four core subjects currently offered | Yes | **Exactly four**, separated by commas, from the list below |
+| Select four core subjects currently offered | Yes | **Four or five**, separated by commas, from the list below |
 | Which subjects do you struggle with the most? | Yes | **At least one**, from the same list, separated by commas |
 | Have you ever written a Computer-Based Test (CBT)? | Yes | `Yes` or `No` |
 | How comfortable are you with using a computer? | Yes | A whole number from `1` (not comfortable) to `5` (very) |
@@ -52,10 +53,10 @@ rows are skipped.
 | Confirm you are aware and support your child's/ward's participation in this program? | Yes | `Yes` or `No` |
 | Do you consent to performance data being used strictly for academic analysis and improvement? | Yes | `Yes` or `No` |
 | Any additional information you would like us to know? | No | Free text |
-| University they are applying for | Yes | Free text |
-| Course they wish to study | Yes | Free text |
+| University they are applying for | No | Free text, or leave the column out or blank — students often haven't decided yet. It can be added later with Edit profile. |
+| Course they wish to study | No | Same as University |
 | Status | No | `admitted`, `deferred` or `drop-out`. Blank means admitted. |
-| Date joined | No | A date. Blank uses the form's Timestamp if there is one, otherwise today. |
+| Date joined | No | A date. Blank uses the form's Timestamp if there is one; for new students otherwise today, and for *Add profiles to existing students* the day that student was added to the app. It can be edited afterwards. |
 
 **Subjects** (use these names exactly): English Language, Mathematics, Physics, Chemistry,
 Biology, Economics, Financial Accounting, Literature in English, CRS, Government.
@@ -71,8 +72,26 @@ isn't a column in the file.
 "Already in the app". It doesn't block the import, so you can keep adding late joiners to
 the same sheet.
 
-**Undo:** an import can be undone from *Recent imports* on the same page, as long as none of
-those students has scores yet.
+**Undo:** an import can be undone from *Recent imports* on the same page. For new students, as long
+as none of them has scores yet (undoing deletes the students).
+
+### Adding profiles to students who are already in the app
+
+Use this when the students were created earlier (by hand or from a scores sheet) and now need
+their registration details. It uses the **same spreadsheet and columns** as above.
+
+- Each row is matched to a student **by name**: any capitals, any word order. Best is a
+  **First Name** and **Last Name** that match the app exactly. If the spreadsheet has extra names
+  (`Ebube Chioma Chukwu`), it still matches `Ebube Chukwu`, but those rows are marked **"Matched by
+  shared words — check"** in the preview so you can confirm them.
+- **Nobody new is created.** A name that matches no one is an error with "Did you mean…?" suggestions,
+  so a typo can't produce a duplicate student. A name that fits two students is flagged, never guessed.
+- You choose which group to match against (everyone, students with no cohort, or one cohort).
+- A student who **already has a profile** is left alone and listed; it doesn't block the import.
+- The preview lists **every row beside the student it matched** (name and serial number). Check
+  them, then click **Add profiles**. Nothing is saved before that.
+- It doesn't change a student's name, serial number, cohort, scores or photo.
+- **Undo** removes just the profiles that import added; the students stay.
 
 ---
 
@@ -123,8 +142,12 @@ The example `.xlsx` already does this.
 
 | Message | Fix |
 |---|---|
-| Couldn't find column(s) for: university, course | Add the missing column(s) with the template's headings |
-| Select exactly four core subjects | The *four core subjects* cell must have four subjects from the list |
+| Couldn't find column(s) for: … | Add the missing column(s) with the template's headings (University and Course aren't required) |
+| Both a first name and a last name are needed | A row has an empty First Name or Last Name cell |
+| No student named "…". Did you mean … (adding profiles) | The name matches no existing student — fix the spelling, or check the group chosen for matching |
+| "…" could be A or B / More than one student is named "…" | Two students fit — make the name more specific |
+| … was already matched by row N | Two rows point at the same student — remove one |
+| Select four or five core subjects | The *core subjects* cell must have four or five subjects from the list |
 | Full name needs a first and last name | Put both names in the cell |
 | Date joined "…" isn't a date I can read | Write it like `2026-10-01`, or leave it blank |
 | This student appears more than once in the file | Same name and date of birth twice — remove one row |

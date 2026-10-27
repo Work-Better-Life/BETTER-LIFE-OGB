@@ -1,6 +1,7 @@
 "use client";
 
 import { plotPercent } from "@/lib/scoring";
+import { labelStepFor, shouldShowLabel } from "@/lib/chart-labels";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 
@@ -150,7 +151,7 @@ export function TrendChart({
   // 3D Bar specific geometry metrics
   const barStepX = innerWidth / data.length;
   const maxLabels = 8;
-  const labelStep = Math.max(1, Math.ceil(data.length / maxLabels));
+  const labelStep = labelStepFor(data.length, maxLabels);
 
   const pillarWidth = Math.min(38, barStepX * 0.82);
   const w = pillarWidth / 2;
@@ -580,9 +581,7 @@ export function TrendChart({
 
               {/* X-Axis labels */}
               {data.map((point, i) => {
-                const show =
-                  i === 0 || i === data.length - 1 || i % labelStep === 0;
-                if (!show) return null;
+                if (!shouldShowLabel(i, data.length, labelStep)) return null;
 
                 const x = PAD_LEFT + (i + 0.5) * barStepX;
                 return (

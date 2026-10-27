@@ -44,8 +44,8 @@ export default async function EditStudentProfilePage({ params }: { params: Promi
         guardianSupports: yesNo(profile.guardianSupports),
         dataConsent: yesNo(profile.dataConsent),
         additionalInfo: profile.additionalInfo ?? "",
-        university: profile.university,
-        course: profile.course,
+        university: profile.university ?? "",
+        course: profile.course ?? "",
         status: profile.status,
         dateJoined: dateToInput(profile.dateJoined),
       }

@@ -195,16 +195,20 @@ export async function listStudentImports(limit = 10) {
   const imports = await prisma.studentImport.findMany({
     orderBy: { createdAt: "desc" },
     take: limit,
-    include: { _count: { select: { students: true } } },
+    include: { _count: { select: { students: true, profiles: true } } },
   });
-  return imports.map((i) => ({
-    id: i.id,
-    fileName: i.fileName,
-    cohortName: i.cohortName,
-    createdAt: i.createdAt.toISOString(),
-    studentCount: i.studentCount,
-    remaining: i._count.students,
-  }));
+  return imports.map((i) => {
+    const kind: "students" | "profiles" = i.kind === "profiles" ? "profiles" : "students";
+    return {
+      id: i.id,
+      kind,
+      fileName: i.fileName,
+      cohortName: i.cohortName,
+      createdAt: i.createdAt.toISOString(),
+      studentCount: i.studentCount,
+      remaining: kind === "profiles" ? i._count.profiles : i._count.students,
+    };
+  });
 }
 
 // Removes every student the import created, with their profiles and photos. It
@@ -215,6 +219,15 @@ export async function undoStudentImport(id: string) {
     async (tx) => {
       const batch = await tx.studentImport.findUnique({ where: { id } });
       if (!batch) throw new Error("This import was already undone.");
+
+      // An "add profiles to existing students" import created no students, so
+      // undoing it removes only the profiles it added and leaves everyone else
+      // (and every score and photo) exactly as it was.
+      if (batch.kind === "profiles") {
+        const removedProfiles = await tx.studentProfile.deleteMany({ where: { importBatchId: id } });
+        await tx.studentImport.delete({ where: { id } });
+        return { removed: removedProfiles.count, photoKeys: [] as string[], kind: "profiles" as const };
+      }
 
       const students = await tx.student.findMany({ where: { importBatchId: id }, select: { id: true } });
       const ids = students.map((s) => s.id);
@@ -238,12 +251,12 @@ export async function undoStudentImport(id: string) {
       }
 
       await tx.studentImport.delete({ where: { id } });
-      return { removed: ids.length, photoKeys };
+      return { removed: ids.length, photoKeys, kind: "students" as const };
     },
     { timeout: 30000, maxWait: 10000 }
   );
 
   // Only once the transaction has committed, so a rolled-back undo never loses a photo.
   await deleteUploadedFiles(outcome.photoKeys);
-  return { removed: outcome.removed };
+  return { removed: outcome.removed, kind: outcome.kind };
 }

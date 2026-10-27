@@ -7,6 +7,7 @@ import { undoStudentImportAction } from "@/lib/actions/profile-import";
 
 type ImportRow = {
   id: string;
+  kind: "students" | "profiles";
   fileName: string | null;
   cohortName: string | null;
   createdAt: string;
@@ -34,7 +35,13 @@ export function RecentStudentImports({ imports }: { imports: ImportRow[] }) {
       setMessage(
         result.error
           ? { text: result.error, isError: true }
-          : { text: `Undid the import of ${result.removed} students.`, isError: false }
+          : {
+              text:
+                result.kind === "profiles"
+                  ? `Undid it: ${result.removed} profiles removed. The students themselves were not touched.`
+                  : `Undid the import of ${result.removed} students.`,
+              isError: false,
+            }
       );
     });
   }
@@ -44,8 +51,9 @@ export function RecentStudentImports({ imports }: { imports: ImportRow[] }) {
       <div>
         <h2 className="font-display text-lg text-foreground">Recent imports</h2>
         <p className="text-sm text-foreground-muted">
-          Spotted a mistake? Undo the import, correct the spreadsheet, then import it again. Undo only works while none
-          of those students have scores yet.
+          Spotted a mistake? Undo the import, correct the spreadsheet, then import it again. Undoing an import that added
+          students only works while none of them has scores yet. Undoing one that added profiles removes just those
+          profiles.
         </p>
       </div>
       {message && (
@@ -59,13 +67,24 @@ export function RecentStudentImports({ imports }: { imports: ImportRow[] }) {
             {imports.map((item) => (
               <tr key={item.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3">
-                  <span className="font-medium text-foreground">{item.fileName ?? "Imported file"}</span>
+                  <span className="font-medium text-foreground">
+                    {item.fileName ?? "Imported file"}
+                    <span className="ml-2 text-xs font-normal text-foreground-muted">
+                      {item.kind === "profiles" ? "added profiles to existing students" : "added new students"}
+                    </span>
+                  </span>
                   <div className="text-xs text-foreground-muted">
                     {formatWhen(item.createdAt)} · {item.cohortName ?? "No cohort"}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-foreground-muted">
-                  {item.remaining === item.studentCount ? `${item.studentCount} students` : `${item.remaining} of ${item.studentCount} students left`}
+                  {item.kind === "profiles"
+                    ? item.remaining === item.studentCount
+                      ? `${item.studentCount} profiles`
+                      : `${item.remaining} of ${item.studentCount} profiles left`
+                    : item.remaining === item.studentCount
+                      ? `${item.studentCount} students`
+                      : `${item.remaining} of ${item.studentCount} students left`}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <Button variant="ghost" size="sm" onClick={() => setUndoing(item)}>
@@ -81,7 +100,11 @@ export function RecentStudentImports({ imports }: { imports: ImportRow[] }) {
       <ConfirmDialog
         open={!!undoing}
         title="Undo this import?"
-        description={`This deletes the ${undoing?.remaining ?? 0} students this import created, along with their profiles and photos. It's refused if any of them already has scores. This can't be undone, but you can import the file again.`}
+        description={
+          undoing?.kind === "profiles"
+            ? `This removes the ${undoing.remaining} profiles this import added. The students, their scores and photos are not touched. This can't be undone, but you can import the file again.`
+            : `This deletes the ${undoing?.remaining ?? 0} students this import created, along with their profiles and photos. It's refused if any of them already has scores. This can't be undone, but you can import the file again.`
+        }
         onConfirm={handleUndo}
         onCancel={() => setUndoing(null)}
         pending={pending}

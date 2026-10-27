@@ -319,7 +319,7 @@ export function ProfileForm({
         <Wide>
           <MultiSelectField
             label="Four core subjects currently offered"
-            hint={`Pick exactly 4 — ${values.coreSubjects.length} selected.`}
+            hint={`Pick 4 or 5 — ${values.coreSubjects.length} selected.`}
             name="coreSubjects"
             options={subjectOptions}
             value={values.coreSubjects}
@@ -382,11 +382,11 @@ export function ProfileForm({
       </Section>
 
       <Section title="Programme">
-        <Field label="University of choice" htmlFor="university">
-          <Input {...text("university")} required />
+        <Field label="University of choice (optional)" htmlFor="university">
+          <Input {...text("university")} />
         </Field>
-        <Field label="Course they wish to study" htmlFor="course">
-          <Input {...text("course")} required />
+        <Field label="Course they wish to study (optional)" htmlFor="course">
+          <Input {...text("course")} />
         </Field>
         {single(
           "status",
