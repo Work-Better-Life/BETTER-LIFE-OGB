@@ -40,12 +40,17 @@ model Student {
 
 // One registration-file import, kept so it can be listed and undone as a unit.
 model StudentImport {
-  id           String    @id @default(cuid())
+  id           String           @id @default(cuid())
+  // null / "students" = an import that created students; "profiles" = one that
+  // only added profiles to students who already existed. Undo differs: the first
+  // deletes the students, the second deletes only the profiles it added.
+  kind         String?
   fileName     String?
   cohortName   String? // snapshot of the cohort chosen at upload, for display
   studentCount Int
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime         @default(now())
   students     Student[]
+  profiles     StudentProfile[]
 }
 
 // Bio data from the registration form. One-to-one with Student and optional,
@@ -66,7 +71,7 @@ model StudentProfile {
   currentClass  String
 
   // Exam readiness
-  coreSubjects         String // JSON array of exactly 4 subject names
+  coreSubjects         String // JSON array of 4 or 5 subject names
   strugglingSubjects   String // JSON array of subject names
   hasTakenCbt          Boolean
   computerComfort      Int // 1-5
@@ -89,13 +94,20 @@ model StudentProfile {
 
   // Programme
   additionalInfo String?
-  university     String
-  course         String
+  university     String? // optional: students often haven't decided yet
+  course         String?
   status         String   @default("admitted") // admitted | deferred | dropped_out
   dateJoined     DateTime
 
+  // Set only for profiles added by an "add profiles to existing students" import,
+  // so that import can be undone.
+  importBatchId String?
+  importBatch   StudentImport? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([importBatchId])
 }
 
 // A named group of students (e.g. "2026"). Separate from a student's join date.

@@ -54,6 +54,8 @@ export function parseCsv(text: string, delimiter = ",", keepBlankRows = false): 
 
 type FieldKey =
   | "fullName"
+  | "firstName"
+  | "lastName"
   | "timestamp"
   | "gender"
   | "dateOfBirth"
@@ -126,6 +128,8 @@ export const TEMPLATE_HEADERS = [
 const COLUMN_RULES: Array<[FieldKey, RegExp]> = [
   ["timestamp", /^timestamp/],
   ["fullName", /^full name/],
+  ["firstName", /^first\s*name$/],
+  ["lastName", /^(last\s*name|surname|family\s*name)$/],
   ["gender", /^gender/],
   ["dateOfBirth", /date of birth/],
   ["houseAddress", /house address/],
@@ -161,6 +165,14 @@ const COLUMN_RULES: Array<[FieldKey, RegExp]> = [
 // by the profile schema will fail per row with a specific message.
 const OPTIONAL_COLUMNS: FieldKey[] = [
   "timestamp",
+  // A name is needed, but either "Full Name" or "First Name" + "Last Name" will do;
+  // that's checked separately below.
+  "fullName",
+  "firstName",
+  "lastName",
+  // Students often haven't decided yet, so these can be left out entirely.
+  "university",
+  "course",
   "houseAddress",
   "biggestChallenge",
   "followUpWilling",
@@ -261,7 +273,16 @@ export function splitFullName(fullName: string) {
 }
 
 export type ParsedImportRow =
-  | { line: number; ok: true; firstName: string; lastName: string; profile: ProfileInput }
+  | {
+      line: number;
+      ok: true;
+      firstName: string;
+      lastName: string;
+      profile: ProfileInput;
+      // True when the sheet gave no Date joined (and no Timestamp to fall back on),
+      // so profile.dateJoined is only a placeholder for the caller to replace.
+      dateJoinedBlank: boolean;
+    }
   | { line: number; ok: false; name: string; error: string };
 
 export type ParsedImport =
@@ -295,10 +316,14 @@ export function parseStudentImport(table: string[][], order: DateOrder = "dmy"):
   const missing = COLUMN_RULES.map(([field]) => field).filter(
     (field) => !OPTIONAL_COLUMNS.includes(field) && !columns.has(field)
   );
-  if (missing.length > 0) {
+  const hasNameColumns = columns.has("fullName") || (columns.has("firstName") && columns.has("lastName"));
+  if (missing.length > 0 || !hasNameColumns) {
+    const parts: string[] = [];
+    if (!hasNameColumns) parts.push('a name column ("Full Name", or both "First Name" and "Last Name")');
+    if (missing.length > 0) parts.push(missing.join(", "));
     return {
       ok: false,
-      error: `Couldn't find column(s) for: ${missing.join(", ")}. Check the header row matches the registration form's questions.`,
+      error: `Couldn't find column(s) for: ${parts.join("; ")}. Check the header row matches the registration form's questions.`,
     };
   }
 
@@ -310,11 +335,25 @@ export function parseStudentImport(table: string[][], order: DateOrder = "dmy"):
       const index = columns.get(field);
       return index === undefined ? "" : (cells[index] ?? "").trim();
     };
-    const fullName = get("fullName");
-    const name = splitFullName(fullName);
-    if (!name) {
-      rows.push({ line, ok: false, name: fullName || "(no name)", error: "Full name needs a first and last name." });
-      return;
+    // "First Name" + "Last Name" columns win over "Full Name" when both exist.
+    let displayName: string;
+    let name: { firstName: string; lastName: string } | null;
+    if (columns.has("firstName") && columns.has("lastName")) {
+      const first = get("firstName");
+      const last = get("lastName");
+      displayName = `${first} ${last}`.trim();
+      name = first && last ? { firstName: first, lastName: last } : null;
+      if (!name) {
+        rows.push({ line, ok: false, name: displayName || "(no name)", error: "Both a first name and a last name are needed." });
+        return;
+      }
+    } else {
+      displayName = get("fullName");
+      name = splitFullName(displayName);
+      if (!name) {
+        rows.push({ line, ok: false, name: displayName || "(no name)", error: "Full name needs a first and last name." });
+        return;
+      }
     }
 
     // A Date joined that's filled in but unreadable is a problem to fix, not
@@ -322,10 +361,12 @@ export function parseStudentImport(table: string[][], order: DateOrder = "dmy"):
     const joinedText = get("dateJoined");
     const joinedParsed = normalizeDate(joinedText, order);
     if (joinedText !== "" && !joinedParsed) {
-      rows.push({ line, ok: false, name: fullName, error: `Date joined "${joinedText}" isn't a date I can read (use something like 2026-10-01).` });
+      rows.push({ line, ok: false, name: displayName, error: `Date joined "${joinedText}" isn't a date I can read (use something like 2026-10-01).` });
       return;
     }
-    const dateJoined = joinedParsed || normalizeDate(get("timestamp"), order) || new Date().toISOString().slice(0, 10);
+    const timestampDate = normalizeDate(get("timestamp"), order);
+    const dateJoinedBlank = !joinedParsed && !timestampDate;
+    const dateJoined = joinedParsed || timestampDate || new Date().toISOString().slice(0, 10);
 
     const parsed = profileSchema.safeParse({
       gender: matchOption(get("gender"), GENDERS),
@@ -362,10 +403,10 @@ export function parseStudentImport(table: string[][], order: DateOrder = "dmy"):
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
       const field = issue?.path[0] ? ` (${String(issue.path[0])})` : "";
-      rows.push({ line, ok: false, name: fullName, error: `${firstIssue(parsed.error)}${field}` });
+      rows.push({ line, ok: false, name: displayName, error: `${firstIssue(parsed.error)}${field}` });
       return;
     }
-    rows.push({ line, ok: true, firstName: name.firstName, lastName: name.lastName, profile: parsed.data });
+    rows.push({ line, ok: true, firstName: name.firstName, lastName: name.lastName, profile: parsed.data, dateJoinedBlank });
   });
 
   return { ok: true, rows, headerRow: headerIndex + 1 };

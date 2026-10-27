@@ -11,6 +11,7 @@ import {
   type CohortSelection,
   type StudentImportReport,
 } from "@/lib/data/profile-import";
+import { analyzeProfileUpdate, commitProfileUpdate, type ProfileUpdateReport } from "@/lib/data/profile-update";
 import { readSpreadsheet } from "@/lib/spreadsheet";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -78,7 +79,60 @@ export async function importStudentsAction(formData: FormData): Promise<StudentI
   }
 }
 
-export async function undoStudentImportAction(id: string): Promise<{ error?: string; removed?: number }> {
+export type ProfileUpdateResult =
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      report: ProfileUpdateReport;
+      // Set only when this call actually added the profiles.
+      updated?: { count: number };
+    };
+
+// Same two-step as importStudentsAction, but each row is matched to a student who
+// already exists and their profile is added. "preview" writes nothing; "import"
+// re-checks the file from scratch and saves only when there isn't a single problem.
+export async function updateProfilesAction(formData: FormData): Promise<ProfileUpdateResult> {
+  const denied = await guardWrite();
+  if (denied) return { ok: false, error: denied };
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose a spreadsheet file to import." };
+  if (file.size > MAX_FILE_BYTES) return { ok: false, error: "That file is too large (5 MB max)." };
+
+  const sheet = readSpreadsheet(new Uint8Array(await file.arrayBuffer()));
+  if (!sheet.ok) return sheet;
+
+  const analysis = await analyzeProfileUpdate(sheet.table, {
+    dateOrder: formData.get("dateOrder") === "mdy" ? "mdy" : "dmy",
+    scope: formData.get("scope")?.toString() ?? "",
+    fileName: file.name,
+    sheetName: sheet.sheetName,
+  });
+  if (!analysis.ok) return analysis;
+
+  if (formData.get("mode") !== "import" || !analysis.report.canImport) return { ok: true, report: analysis.report };
+
+  try {
+    const saved = await commitProfileUpdate(analysis.plan);
+    revalidatePath("/students");
+    revalidatePath("/students/import");
+    for (const item of analysis.plan.items) {
+      revalidatePath(`/students/${item.studentId}`);
+      revalidatePath(`/students/${item.studentId}/profile`);
+    }
+    return { ok: true, report: analysis.report, updated: { count: saved.count } };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error && error.message.startsWith("Some of these students")
+          ? error.message
+          : "Nothing was saved because something went wrong while adding the profiles. Try again.",
+    };
+  }
+}
+
+export async function undoStudentImportAction(id: string): Promise<{ error?: string; removed?: number; kind?: "students" | "profiles" }> {
   const denied = await guardWrite();
   if (denied) return { error: denied };
 
@@ -88,7 +142,7 @@ export async function undoStudentImportAction(id: string): Promise<{ error?: str
     revalidatePath("/students/import");
     revalidatePath("/students/cohorts");
     revalidatePath("/dashboard");
-    return { removed: result.removed };
+    return { removed: result.removed, kind: result.kind };
   } catch (error) {
     return { error: error instanceof Error ? error.message : "Couldn't undo this import." };
   }

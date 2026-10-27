@@ -81,7 +81,10 @@ export const profileSchema = z.object({
   currentClass: z.enum(CLASSES, { error: "Current class is required." }),
 
   coreSubjects: subjectList().pipe(
-    z.array(z.enum(PROFILE_SUBJECTS)).length(4, "Select exactly four core subjects.")
+    z
+      .array(z.enum(PROFILE_SUBJECTS))
+      .min(4, "Select four or five core subjects.")
+      .max(5, "Select four or five core subjects.")
   ),
   strugglingSubjects: subjectList().pipe(
     z.array(z.enum(PROFILE_SUBJECTS)).min(1, "Select at least one subject you struggle with.")
@@ -111,8 +114,8 @@ export const profileSchema = z.object({
   dataConsent: requiredYesNo("Data consent"),
 
   additionalInfo: optionalText(),
-  university: required("University"),
-  course: required("Course"),
+  university: optionalText(),
+  course: optionalText(),
   status: z.enum(STATUSES).default("admitted"),
   dateJoined: requiredDate("Date joined"),
 });
