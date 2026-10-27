@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { listStudents } from "@/lib/data/students";
 import { listCohorts } from "@/lib/data/cohorts";
@@ -9,6 +10,7 @@ import { SearchBox } from "@/components/students/search-box";
 import { SortSelect } from "@/components/students/sort-select";
 import { Pagination } from "@/components/students/pagination";
 import { ExportCsvMenu } from "@/components/students/export-csv-menu";
+import { RememberStudentsList } from "@/components/students/remember-students-list";
 
 const PAGE_SIZE = 10;
 
@@ -25,8 +27,23 @@ export default async function StudentsPage({
     listCohorts(),
   ]);
 
+  // A remembered page can stop existing (students deleted, a filter narrowed it).
+  // Land on the last real page instead of an empty one.
+  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (page > lastPage) {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (sort) params.set("sort", sort);
+    if (cohort) params.set("cohort", cohort);
+    if (lastPage > 1) params.set("page", String(lastPage));
+    redirect(params.size > 0 ? `/students?${params.toString()}` : "/students");
+  }
+
   return (
     <div className="flex flex-col gap-6">
+      <Suspense fallback={null}>
+        <RememberStudentsList />
+      </Suspense>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl text-foreground">Students</h1>

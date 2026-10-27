@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { StudentsListLink } from "@/components/students/students-list-link";
 
 export type Crumb = { label: string; href?: string };
 
@@ -13,7 +14,12 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
           const isLast = index === items.length - 1;
           return (
             <li key={`${index}-${item.label}`} className="flex min-w-0 items-center gap-1.5">
-              {item.href && !isLast ? (
+              {item.href === "/students" && !isLast ? (
+                // Returns to the page / search / filter you were on, not always page 1.
+                <StudentsListLink className="max-w-40 truncate hover:text-foreground hover:underline">
+                  {item.label}
+                </StudentsListLink>
+              ) : item.href && !isLast ? (
                 <Link href={item.href} className="max-w-40 truncate hover:text-foreground hover:underline">
                   {item.label}
                 </Link>
