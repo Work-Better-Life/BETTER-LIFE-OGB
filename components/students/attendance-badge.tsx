@@ -31,7 +31,7 @@ export function AttendanceBadge({
       variant={variant}
       title={`${summary.days} of ${summary.possible} days attended over ${summary.weeks} weeks (${DAYS_PER_WEEK}-day weeks) · ${periodLabel}`}
     >
-      {ATTENDANCE_BAND_LABELS[summary.band]} · {Math.round(summary.rate)}% ({periodLabel})
+      {ATTENDANCE_BAND_LABELS[summary.band]} · {Math.round(summary.rate)}%
     </Badge>
   );
 }
